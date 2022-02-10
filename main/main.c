@@ -133,6 +133,21 @@ esp_err_t init_fs(void)
     return ESP_OK;
 }
 
+
+void sendFunction(void * parameters)
+{
+    char buffer[50];
+
+    uint count = 0;
+
+    while(true)
+    {
+        vTaskDelay(3000/portTICK_PERIOD_MS);
+        snprintf(buffer, 49, "Count = %d", count++);
+        sendNewDataToSockets(buffer, strlen(buffer));
+    }
+}
+
 void app_main(void)
 {
     ESP_ERROR_CHECK(nvs_flash_init());
@@ -146,5 +161,7 @@ void app_main(void)
     wifi_start();
     ESP_ERROR_CHECK(init_fs());
 
-    ESP_ERROR_CHECK(start_rest_server(WEB_MOUNT_POINT));
+    ESP_ERROR_CHECK(start_web_server(WEB_MOUNT_POINT));
+
+    xTaskCreate(sendFunction, "Send Func", ESP_TASK_MAIN_STACK, NULL, ESP_TASK_MAIN_PRIO, NULL);
 }
