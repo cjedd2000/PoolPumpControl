@@ -1,0 +1,54 @@
+<html>
+    <head>
+        <meta name="viewport" charset="utf-8" content="width=device-width, initial-scale=1">
+    </head>
+    <title>My Test Websocket Page</title>
+    <body>
+        <div id="buttonDiv">
+            <button id="socketButton"> Socket Send </button>
+        </div>
+        <div id="WordsDiv">
+            <a id="Words"> Test Words </a>
+        </div>
+
+        <script>
+            var gateway = `ws://${window.location.hostname}/ws`;
+            var websocket;
+            function initWebSocket() {
+                console.log('Trying to open a WebSocket connection...');
+                websocket = new WebSocket(gateway);
+                websocket.onopen    = onOpen;
+                websocket.onclose   = onClose;
+                websocket.onmessage = onMessage; // <-- add this line
+            }
+            function onOpen(event) {
+                console.log('Connection opened');
+            }
+
+            function onClose(event) {
+                console.log('Connection closed');
+                setTimeout(initWebSocket, 2000);
+            }
+            function onMessage(event) {
+                var state;
+                console.log("data Received: ")
+                console.log(event.data)
+                
+                document.getElementById('Words').innerHTML = event.data;
+            }
+            window.addEventListener('load', onLoad);
+            function onLoad(event) {
+                initWebSocket();
+                initButton();
+            }
+
+            function initButton() {
+                document.getElementById('socketButton').addEventListener('click', toggle);
+            }
+            function toggle(){
+                websocket.send('toggle');
+                console.log("Toggle Button Pressed")
+            }
+        </script>
+    </body>
+</html>
