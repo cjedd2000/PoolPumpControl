@@ -1,19 +1,102 @@
 <html>
     <head>
         <meta name="viewport" charset="utf-8" content="width=device-width, initial-scale=1">
+        <style>
+            body {
+                width: 100vw;
+                height: 100vh;;
+                margin: 0;
+                padding: 0;
+                background-color: rgb(27, 27, 27);
+                color: rgb(0, 163, 0);
+            }
+
+            .container {
+                height: 100vh;
+                width: 100vw;
+            }
+
+            #debugContainer {
+                position: absolute;
+                width: 100%;
+                height: 30%;
+                bottom: 0px;
+                overflow: hidden;
+                outline-style:solid;
+                padding: 0;
+            }
+
+            .debugTextConsole {
+                position: absolute;
+                width: 100%;
+                height: 80%;
+                bottom: 0;
+                overflow: scroll;
+                padding-left: 5px;
+                padding-right: 5px;
+                font-family: 'Courier New', Courier, monospace;
+            }
+
+            .staticInterface {
+                padding-top: 3px;
+                padding-left: 5px;
+                padding-right: 5px;
+                padding-bottom: 5px;
+                font-size: x-large;
+            }
+
+            .button {
+                background-color: #4CAF50; /* Green */
+                border: none;
+                color: white;
+                padding-top: 20px;
+                padding-bottom: 20px;
+                padding-left: 7px;
+                padding-right: 7px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                font-size: 16px;
+                margin: 4px 2px;
+                cursor: pointer;
+                border-radius: 8px;
+                margin-top: 30px;
+            }
+        </style>
     </head>
-    <title>My Test Websocket Page</title>
+    <title>Pool Pump Control</title>
     <body>
-        <div id="buttonDiv">
-            <button id="socketButton"> Socket Send </button>
-        </div>
-        <div id="WordsDiv">
-            <a id="Words"> Test Words </a>
+        <div class="container">
+            <div class="staticInterface">
+                <h2>Pool Pump Controller</h2>
+                <hr>
+                <div id="pumpState"> Pump State: Not Connected... </div>
+                <div id="buttonState">Button State: Not Connected...</div>
+                <div id="waterTemp">Water Temperature: Not Connected...</div>
+                <div id="ambientTemp">Ambient Temperature: Not Connected...</div>
+
+                <button id="togglePumpState" class="button"> Toggle Pump Power </button>
+            </div>
+
+            <div id="debugContainer" class="debugFrame">
+                <div id="debugHeader">
+                    <a style="font-size: larger; font-weight: bold; padding-left: 5px;">Debugger</a>
+                        <input type="checkbox" id="AutoScroll" name="AutoScroll" value="AutoScroll" style="position: absolute; right: 10px;">
+                        <label style="position: absolute; right: 35px; font-weight: bold;" for="AutoScroll"> Auto Scroll</label><br>
+                    
+                </div>
+                <hr>
+                <div id="debugTextField" class="debugTextConsole"></div>
+            </div>
         </div>
 
         <script>
             var gateway = `ws://${window.location.hostname}/api/v1/ws`;
+            //var gateway = `ws://192.168.1.173/api/v1/ws`;
             var websocket;
+
+            var automaticScrollDebugger = true;
+
             function initWebSocket() {
                 console.log('Trying to open a WebSocket connection...');
                 websocket = new WebSocket(gateway);
@@ -34,17 +117,38 @@
                 console.log("data Received: ")
                 console.log(event.data)
                 
-                document.getElementById('Words').innerHTML = event.data;
+                document.getElementById('debugTextField').innerHTML += event.data +'<br>';
+                var scrollBody = document.getElementById('debugTextField');
+
+                if(automaticScrollDebugger) {
+                    scrollBody.scrollTop = scrollBody.scrollHeight - scrollBody.clientHeight;
+                }
             }
             window.addEventListener('load', onLoad);
             function onLoad(event) {
                 initWebSocket();
                 initButton();
+                initAutoScrollCheckbox();
             }
 
             function initButton() {
-                document.getElementById('socketButton').addEventListener('click', toggle);
+                document.getElementById('togglePumpState').addEventListener('click', toggle);
             }
+
+            function initAutoScrollCheckbox() {
+                document.getElementById('AutoScroll').addEventListener('click', autoScroll);
+                document.getElementById('AutoScroll').checked = automaticScrollDebugger;
+            }
+
+            function autoScroll() {
+                if(document.getElementById('AutoScroll').checked) {
+                    automaticScrollDebugger = true;
+                }
+                else {
+                    automaticScrollDebugger = false;
+                }
+            }
+
             function toggle(){
                 websocket.send('toggle');
                 console.log("Toggle Button Pressed")
