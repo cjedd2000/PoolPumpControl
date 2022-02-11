@@ -1,6 +1,8 @@
 idf_component_register(SRCS "main.c"
                             "webServer.c"
-                    INCLUDE_DIRS ".")
+                            "../TempSensor/ds18b20.c"
+                    INCLUDE_DIRS "."
+                                 "../TempSensor")
 
 set(WEB_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../front")
 if(EXISTS ${WEB_SRC_DIR})

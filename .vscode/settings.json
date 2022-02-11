@@ -15,7 +15,10 @@
     "projectconfig.h": "c",
     "*.inc": "c",
     "fcntl.h": "c",
-    "_default_fcntl.h": "c"
+    "_default_fcntl.h": "c",
+    "gpio.h": "c",
+    "algorithm": "c",
+    "esp_log.h": "c"
   },
   "idf.portWin": "COM5"
 }
