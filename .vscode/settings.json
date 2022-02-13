@@ -3,6 +3,7 @@
   "cSpell.words": [
     "CJNET",
     "LOGI",
+    "LOGW",
     "mdns",
     "netbiosns",
     "netif",
@@ -18,7 +19,11 @@
     "_default_fcntl.h": "c",
     "gpio.h": "c",
     "algorithm": "c",
-    "esp_log.h": "c"
+    "esp_log.h": "c",
+    "netbiosns.h": "c",
+    "ds18b20.h": "c",
+    "webserver.h": "c",
+    "temperature.h": "c"
   },
   "idf.portWin": "COM5"
 }

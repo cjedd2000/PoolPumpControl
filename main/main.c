@@ -11,11 +11,10 @@
 #include "ProjectConfig.h"
 #include "WifiConfig.h"
 #include "webServer.h"
+#include "temperature.h"
 
 #include "ds18b20.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "driver/gpio.h"
+
 
 static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
@@ -140,45 +139,30 @@ esp_err_t init_fs(void)
 }
 
 
-void sendFunction(void * parameters)
+void Periodic5SecFuncs(void * parameters)
 {
-    char buffer[50];
+    TickType_t LastWakeTime;
+    const TickType_t Frequency = 5 * xPortGetTickRateHz();      // 5 Second Delay
 
-    uint count = 0;
+    float ambientTemperature, waterTemperature;
+    static char buffer[100];
+
+    // Initialise the LastWakeTime variable with the current time.
+    LastWakeTime = xTaskGetTickCount();
 
     while(true)
     {
-        vTaskDelay(3000/portTICK_PERIOD_MS);
-        snprintf(buffer, 49, "Count = %d", count++);
-        sendNewDataToSockets(buffer, strlen(buffer));
+        // Wait for the next cycle.
+        vTaskDelayUntil( &LastWakeTime, Frequency );
+
+        // Perform action here.
+        getTemperatures(&ambientTemperature, &waterTemperature);
+
+        
+
+    snprintf(buffer, 49, "Temperatures:\nAmbient: %0.1fC\n  Water: %0.1fC", ambientTemperature, waterTemperature);
+    sendNewDataToSockets(buffer, strlen(buffer));                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
     }
-}
-
-DeviceAddress tempSensors[2];
-unsigned int sensorsFound = 0;
-
-void getTempAddresses(DeviceAddress *tempSensorAddresses) {
-	
-	reset_search();
-
-	// search for 2 addresses on the oneWire protocol
-	while (search(tempSensorAddresses[sensorsFound],true)) {
-		sensorsFound++;
-		if (sensorsFound == 1) break;
-	}
-	// if 2 addresses aren't found then flash the LED rapidly
-	while (sensorsFound != 1) {
-		sensorsFound = 0;
-		vTaskDelay(100 / portTICK_PERIOD_MS);
-		vTaskDelay(100 / portTICK_PERIOD_MS);
-		// search in the loop for the temp sensors as they may hook them up
-		reset_search();
-		while (search(tempSensorAddresses[sensorsFound],true)) {
-			sensorsFound++;
-			if (sensorsFound == 1) break;
-		}
-	}
-	return;
 }
 
 void app_main(void)
@@ -190,35 +174,15 @@ void app_main(void)
     netbiosns_init();
     netbiosns_set_name(MDNS_HOST_NAME);
 
-    //ESP_ERROR_CHECK(example_connect());
     wifi_start();
     ESP_ERROR_CHECK(init_fs());
 
     ESP_ERROR_CHECK(start_web_server(WEB_MOUNT_POINT));
 
-    //xTaskCreate(sendFunction, "Send Func", ESP_TASK_MAIN_STACK, NULL, ESP_TASK_MAIN_PRIO, NULL);
+    vTaskDelay(1000/portTICK_PERIOD_MS);
 
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    configureTempSensors();
 
-    ESP_LOGI("temp", "______________________________Here___________________");
-    ESP_LOGI("temp", "Init BUs");
-    ds18b20_init(TEMP_SENSOR_ONE_WIRE_GPIO);
-    ESP_LOGI("temp", "Get Addresses");
-	getTempAddresses(tempSensors);
-    ESP_LOGI("temp", "Set Resolution");
-	ds18b20_setResolution(tempSensors,2,10);
-
-    ESP_LOGI("temp", "Address 0: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x \n", tempSensors[0][0],tempSensors[0][1],tempSensors[0][2],tempSensors[0][3],tempSensors[0][4],tempSensors[0][5],tempSensors[0][6],tempSensors[0][7]);
-    ESP_LOGI("temp", "Address 1: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x \n", tempSensors[1][0],tempSensors[1][1],tempSensors[1][2],tempSensors[1][3],tempSensors[1][4],tempSensors[1][5],tempSensors[1][6],tempSensors[1][7]);
-
-    while (1) {
-		ds18b20_requestTemperatures();
-		float temp3 = ds18b20_getTempC((DeviceAddress *)tempSensors[0]);
-		float temp4 = ds18b20_getTempC((DeviceAddress *)tempSensors[1]);
-		ESP_LOGI("temp", "Temperatures: %0.1fC %0.1fC\n", temp3,temp4);
-
-		float cTemp = ds18b20_get_temp();
-		ESP_LOGI("temp", "Temperature: %0.1fC\n", cTemp);
-		vTaskDelay(2000 / portTICK_PERIOD_MS);
-	}
+    xTaskCreate(&Periodic5SecFuncs, "Periodic5SecFuncs", ESP_TASK_MAIN_STACK, NULL, 10, NULL);
+    //xTaskCreatePinnedToCore(&Periodic5SecFuncs, "Periodic5SecFuncs", ESP_TASK_MAIN_STACK, NULL, 10, NULL, 1);
 }
