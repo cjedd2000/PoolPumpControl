@@ -160,8 +160,8 @@ void Periodic5SecFuncs(void * parameters)
 
         
 
-    snprintf(buffer, 49, "Temperatures:\nAmbient: %0.1fC\n  Water: %0.1fC", ambientTemperature, waterTemperature);
-    sendNewDataToSockets(buffer, strlen(buffer));                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+        snprintf(buffer, 49, "Temperatures:\nAmbient: %0.1fC\n  Water: %0.1fC", ambientTemperature, waterTemperature);
+        sendNewDataToSockets(buffer, strlen(buffer));                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
     }
 }
 
@@ -179,9 +179,9 @@ void app_main(void)
 
     ESP_ERROR_CHECK(start_web_server(WEB_MOUNT_POINT));
 
-    vTaskDelay(1000/portTICK_PERIOD_MS);
+   // vTaskDelay(1000/portTICK_PERIOD_MS);
 
-    configureTempSensors();
+   configureTempSensors();
 
     xTaskCreate(&Periodic5SecFuncs, "Periodic5SecFuncs", ESP_TASK_MAIN_STACK, NULL, 10, NULL);
     //xTaskCreatePinnedToCore(&Periodic5SecFuncs, "Periodic5SecFuncs", ESP_TASK_MAIN_STACK, NULL, 10, NULL, 1);
