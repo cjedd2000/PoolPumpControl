@@ -15,10 +15,6 @@ void getTempAddresses(DeviceAddress *tempSensorAddresses) {
 	
 	reset_search();
 
-	// search for 2 addresses on the oneWire protocol
-	//if(search(tempSensorAddresses[sensorsFound],true)) sensorsFound++;
-    //if(search(tempSensorAddresses[sensorsFound],true)) sensorsFound++;
-
     while (search(tempSensorAddresses[sensorsFound],true)) {
 		sensorsFound++;
 		if (sensorsFound == 2) break;
@@ -32,11 +28,14 @@ void getTempAddresses(DeviceAddress *tempSensorAddresses) {
 
 void getTemperatures(float *ambTemp, float *waterTemp)
 {
+    //LOGI("Requesting Temps...");
     ds18b20_requestTemperatures();
+    //vTaskDelay(5000/portTICK_PERIOD_MS);
+    //LOGI("Getting Temp");
     *ambTemp = ds18b20_getTempC((DeviceAddress *)tempSensors[AMBIENT_TEMP_SENSOR]);
     *waterTemp = ds18b20_getTempC((DeviceAddress *)tempSensors[WATER_TEMP_SENSOR]);
-    LOGI("Ambient Temperature: %0.1fC", *ambTemp);
-    LOGI("Water Temperature: %0.1fC", *waterTemp);
+    //*waterTemp = *ambTemp;
+
 }
 
 esp_err_t configureTempSensors()

@@ -15,6 +15,8 @@
 
 #include "ds18b20.h"
 
+#include "projectLog.h"
+
 
 static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
@@ -155,18 +157,21 @@ void Periodic5SecFuncs(void * parameters)
         // Wait for the next cycle.
         vTaskDelayUntil( &LastWakeTime, Frequency );
 
-        // Perform action here.
+        // Actions
         getTemperatures(&ambientTemperature, &waterTemperature);
 
-        
-
-    snprintf(buffer, 49, "Temperatures:\nAmbient: %0.1fC\n  Water: %0.1fC", ambientTemperature, waterTemperature);
-    sendNewDataToSockets(buffer, strlen(buffer));                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+        snprintf(buffer, 49, "Temperatures:\nAmbient: %0.1fC\n  Water: %0.1fC", ambientTemperature, waterTemperature);
+        LOGI("%s", buffer);
+        sendNewDataToSockets(buffer, strlen(buffer));                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
     }
 }
 
 void app_main(void)
 {
+    configureTempSensors();
+
+    vTaskDelay(5000/portTICK_PERIOD_MS);
+
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -179,10 +184,7 @@ void app_main(void)
 
     ESP_ERROR_CHECK(start_web_server(WEB_MOUNT_POINT));
 
-    vTaskDelay(1000/portTICK_PERIOD_MS);
-
-    configureTempSensors();
+    vTaskDelay(5000/portTICK_PERIOD_MS);
 
     xTaskCreate(&Periodic5SecFuncs, "Periodic5SecFuncs", ESP_TASK_MAIN_STACK, NULL, 10, NULL);
-    //xTaskCreatePinnedToCore(&Periodic5SecFuncs, "Periodic5SecFuncs", ESP_TASK_MAIN_STACK, NULL, 10, NULL, 1);
 }

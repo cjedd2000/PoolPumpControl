@@ -211,7 +211,10 @@ void ds18b20_requestTemperatures(){
 	ds18b20_write_byte(SKIPROM);
 	ds18b20_write_byte(GETTEMP);
     unsigned long start = esp_timer_get_time() / 1000ULL;
-    while (!isConversionComplete() && ((esp_timer_get_time() / 1000ULL) - start < millisToWaitForConversion())) vPortYield();
+
+	vTaskDelay(millisToWaitForConversion()/portTICK_PERIOD_MS);
+
+    //while (!isConversionComplete() && ((esp_timer_get_time() / 1000ULL) - start < millisToWaitForConversion())) vPortYield();
 }
 
 bool isConversionComplete() {
@@ -222,13 +225,13 @@ bool isConversionComplete() {
 uint16_t millisToWaitForConversion() {
 	switch (bitResolution) {
 	case 9:
-		return 94;
+		return 100;		// was 94
 	case 10:
-		return 188;
+		return 195;		// was 188
 	case 11:
-		return 375;
+		return 395;		// was 375
 	default:
-		return 750;
+		return 790;		// was 750
 	}
 }
 
