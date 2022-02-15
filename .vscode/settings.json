@@ -23,7 +23,17 @@
     "netbiosns.h": "c",
     "ds18b20.h": "c",
     "webserver.h": "c",
-    "temperature.h": "c"
+    "temperature.h": "c",
+    "array": "c",
+    "deque": "c",
+    "list": "c",
+    "string": "c",
+    "unordered_map": "c",
+    "unordered_set": "c",
+    "vector": "c",
+    "string_view": "c",
+    "initializer_list": "c",
+    "regex": "c"
   },
   "idf.portWin": "COM5"
 }

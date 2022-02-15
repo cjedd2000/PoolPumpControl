@@ -28,14 +28,9 @@ void getTempAddresses(DeviceAddress *tempSensorAddresses) {
 
 void getTemperatures(float *ambTemp, float *waterTemp)
 {
-    //LOGI("Requesting Temps...");
     ds18b20_requestTemperatures();
-    //vTaskDelay(5000/portTICK_PERIOD_MS);
-    //LOGI("Getting Temp");
     *ambTemp = ds18b20_getTempC((DeviceAddress *)tempSensors[AMBIENT_TEMP_SENSOR]);
     *waterTemp = ds18b20_getTempC((DeviceAddress *)tempSensors[WATER_TEMP_SENSOR]);
-    //*waterTemp = *ambTemp;
-
 }
 
 esp_err_t configureTempSensors()
