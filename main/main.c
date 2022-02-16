@@ -18,6 +18,13 @@
 
 #include "freertos/task.h"
 
+#define FLOAT_TO_BITS32(floatVal) (*((uint32_t*)&floatVal)))
+
+typedef union
+{
+    uint32_t i;
+    float f;
+} data32_t;
 
 static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
@@ -145,9 +152,12 @@ esp_err_t init_fs(void)
 void Periodic5SecFuncs(void * parameters)
 {
     TickType_t LastWakeTime;
-    const TickType_t Frequency = 5 * xPortGetTickRateHz();      // 5 Second Delay
+    const TickType_t FunctionPeriod = 5 * xPortGetTickRateHz();      // 5 Second Delay
 
-    float ambientTemperature, waterTemperature;
+    bool temp = false;
+
+    data32_t ambientTemperature, waterTemperature;
+
     static char buffer[100];
     static char buffer2[500];
 
@@ -157,17 +167,26 @@ void Periodic5SecFuncs(void * parameters)
     while(true)
     {
         // Wait for the next cycle.
-        vTaskDelayUntil( &LastWakeTime, Frequency );
+        vTaskDelayUntil( &LastWakeTime, FunctionPeriod );
 
         // Actions
-        getTemperatures(&ambientTemperature, &waterTemperature);
+        getTemperatures(&ambientTemperature.f, &waterTemperature.f);
 
-        snprintf(buffer, 100, "Temperatures:\nAmbient: %0.1fC\n  Water: %0.1fC", ambientTemperature, waterTemperature);
+        snprintf(buffer, 100, "Temperatures:\nAmbient: %0.1fC\n  Water: %0.1fC", ambientTemperature.f, waterTemperature.f);
         LOGI("%s", buffer);
-        sendToRemoteDebugger(buffer, strlen(buffer));   
+
+        sendData(WS_DATA_WATER_TEMP, waterTemperature.i);
+        sendData(WS_DATA_AMB_TEMP, ambientTemperature.i);
+
+        if(temp)
+            sendData(WS_DATA_PUMP_STATE, 1);
+        else
+            sendData(WS_DATA_PUMP_STATE, 0);
+
+        temp = !temp;
 
         vTaskList(buffer2);
-        LOGI("\nTaskList:\n%s\n\n", buffer2);    
+        //LOGI("\nTaskList:\n%s\n\n", buffer2);    
     }
 }
 

@@ -33,7 +33,9 @@
     "vector": "c",
     "string_view": "c",
     "initializer_list": "c",
-    "regex": "c"
+    "regex": "c",
+    "*.tcc": "c",
+    "esp_https_server.h": "c"
   },
   "idf.portWin": "COM5"
 }

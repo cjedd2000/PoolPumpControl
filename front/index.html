@@ -70,10 +70,9 @@
             <div class="staticInterface">
                 <h2>Pool Pump Controller</h2>
                 <hr>
-                <div id="pumpState"> Pump State: Not Connected... </div>
-                <div id="buttonState">Button State: Not Connected...</div>
-                <div id="waterTemp">Water Temperature: Not Connected...</div>
-                <div id="ambientTemp">Ambient Temperature: Not Connected...</div>
+                <div id="pumpState"> Connecting... </div>
+                <div id="waterTemp"></div>
+                <div id="ambientTemp"></div>
 
                 <button id="togglePumpState" class="button"> Toggle Pump Power </button>
             </div>
@@ -91,30 +90,58 @@
         </div>
 
         <script>
-            var gateway = `ws://${window.location.hostname}/api/v1/ws/remoteDebugger`;
-            //var gateway = `ws://192.168.1.173/api/v1/ws`;
-            var websocket;
+            var debuggerWsAddr = `ws://${window.location.hostname}/api/v1/ws/remoteDebugger`;
+            //var debuggerWsAddr = `ws://192.168.1.173/api/v1/ws/remoteDebugger`;
+            var dataWsAddr = `ws://${window.location.hostname}/api/v1/ws/data`;
+            //var dataWsAddr = `ws://192.168.1.173/api/v1/ws/data`;
+
+            const WS_DATA_NONE = 0;
+            const WS_DATA_PUMP_STATE = 1;
+            const WS_DATA_WATER_TEMP = 2;
+            const WS_DATA_AMB_TEMP = 3;
+
+            var debuggerWs;
+            var dataWs;
 
             var automaticScrollDebugger = true;
 
-            function initWebSocket() {
-                console.log('Trying to open a WebSocket connection...');
-                websocket = new WebSocket(gateway);
-                websocket.onopen    = onOpen;
-                websocket.onclose   = onClose;
-                websocket.onmessage = onMessage; // <-- add this line
-            }
-            function onOpen(event) {
-                console.log('Connection opened');
+            function initDebuggerWebSocket() {
+                console.log('Trying to open a Debugger WebSocket connection...');
+                debuggerWs = new WebSocket(debuggerWsAddr);
+                debuggerWs.onopen    = onDebuggerOpen;
+                debuggerWs.onclose   = onDebuggerClose;
+                debuggerWs.onmessage = onDebuggerMessage;
             }
 
-            function onClose(event) {
-                console.log('Connection closed');
-                setTimeout(initWebSocket, 2000);
+            function initDataWebSocket() {
+                console.log('Trying to open a Data WebSocket connection...');
+                dataWs = new WebSocket(dataWsAddr);
+                dataWs.onopen    = onDataOpen;
+                dataWs.onclose   = onDataClose;
+                dataWs.onmessage = onDataMessage;
+                dataWs.binaryType = "arraybuffer";
             }
-            function onMessage(event) {
-                var state;
-                console.log("data Received: ")
+
+            function onDebuggerOpen(event) {
+                console.log('Debugger connection opened');
+            }
+
+            function onDataOpen(event) {
+                console.log('Data connection opened');
+            }
+
+            function onDebuggerClose(event) {
+                console.log('Connection closed');
+                setTimeout(initDebuggerWebSocket, 2000);
+            }
+
+            function onDataClose(event) {
+                console.log('Data connection closed');
+                setTimeout(initDataWebSocket, 2000);
+            }
+
+            function onDebuggerMessage(event) {
+                console.log("Debugger Received: ")
                 console.log(event.data)
                 
                 document.getElementById('debugTextField').innerHTML += event.data +'<br>';
@@ -124,9 +151,69 @@
                     scrollBody.scrollTop = scrollBody.scrollHeight - scrollBody.clientHeight;
                 }
             }
+
+            function onDataMessage(event) {
+                var type;
+                var dataInt;
+                var dataFloat;
+
+                console.log("Data Received: ")
+                console.log(event.data)
+
+                if(event.data.byteLength == 8)
+                {
+                    type = new Uint32Array(event.data)[0];
+                    dataInt = new Uint32Array(event.data)[1];
+                    dataFloat = new Float32Array(event.data)[1];
+                    console.log("    Type: " + type);
+                    console.log("  ValueI: " + dataInt);
+                    console.log("  ValueF: " + dataFloat);
+                }
+                else
+                {
+                    console.log("Incorrect message length");
+                    return;
+                }
+
+                switch(type)
+                {
+                    case WS_DATA_PUMP_STATE:
+                        var state = 'Pump State: '
+                        if(dataInt == 1)
+                        {
+                            state += 'Running';
+                        }
+                        else if(dataInt == 0)
+                        {
+                            state += 'Off';
+                        }
+                        else
+                        {
+                            state += 'ERROR'
+                        }
+
+                        document.getElementById('pumpState').innerHTML = state;
+
+                        break;
+
+                    case WS_DATA_WATER_TEMP:
+                        document.getElementById('waterTemp').innerHTML = 'Water Temperature: ' + dataFloat.toFixed(2) + ' C';
+                        break;
+
+                    case WS_DATA_AMB_TEMP:
+                        document.getElementById('ambientTemp').innerHTML = 'Ambient Temperature: ' + dataFloat.toFixed(2) + ' C';
+                        break;
+
+                    default:
+                        console.log("  Invalid Data Type");
+                        break;
+                }
+            }
+
             window.addEventListener('load', onLoad);
             function onLoad(event) {
-                initWebSocket();
+                initDebuggerWebSocket();
+                initDataWebSocket();
                 initButton();
                 initAutoScrollCheckbox();
             }
@@ -150,7 +237,7 @@
             }
 
             function toggle(){
-                websocket.send('toggle');
+                dataWs.send('toggle');
                 console.log("Toggle Button Pressed")
             }
         </script>

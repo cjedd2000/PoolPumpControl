@@ -1,5 +1,4 @@
 #include "esp_http_server.h"
-#include "esp_log.h"
 #include "esp_err.h"
 #include "stdbool.h"
 #include "esp_vfs.h"
@@ -8,6 +7,7 @@
 #include <string.h>
 
 #include "projectLog.h"
+
 
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
 #define SCRATCH_BUFSIZE (10240)
@@ -21,6 +21,13 @@ typedef struct server_context {
 
 httpd_handle_t server;
 
+typedef enum
+{
+    WS_NONE = 0,
+    WS_DEBUG,
+    WS_DATA
+} socketType_t;
+
 void sendToRemoteDebugger(const char *format, ...)
 {
     int clientFds[7];
@@ -31,6 +38,9 @@ void sendToRemoteDebugger(const char *format, ...)
 
     va_list arg;
 
+    //struct sock_db* temp;
+    void * temp;
+
     if(server != NULL)
     {
         httpd_get_client_list(server, &clientCount, clientFds);
@@ -38,6 +48,8 @@ void sendToRemoteDebugger(const char *format, ...)
         for(uint i = 0; i < clientCount; i++)
         {
             LOGI("  Client Index %02d: %d", i, clientFds[i]);
+            temp = httpd_sess_get_ctx(server, clientFds[i]);
+            LOGI("   Context: %d", (uint32_t)temp);
         }
 
         va_start(arg, format);
@@ -54,19 +66,77 @@ void sendToRemoteDebugger(const char *format, ...)
 
         for(uint i = 0; i < clientCount; i++)
         {
-            LOGI("Sending Data to client ID: %d", clientFds[i]);
-            httpd_ws_send_frame_async(server, clientFds[i], &ws_pkt);
-            LOGI("Data Sent");
+            if((uint32_t*)httpd_sess_get_ctx(server, clientFds[i]) == WS_DEBUG)
+            {
+                LOGI("Sending Data to client ID: %d", clientFds[i]);
+                httpd_ws_send_frame_async(server, clientFds[i], &ws_pkt);
+            }
         }
     }
+}
+
+void sendData(wsDataType_t dataType, uint32_t data)
+{
+    int clientFds[7];
+    size_t clientCount;
+
+    uint32_t payload[2];
+    payload[0] = dataType;
+    payload[1] = data;
+
+    if(server != NULL)
+    {
+        httpd_get_client_list(server, &clientCount, clientFds);
+
+        httpd_ws_frame_t ws_pkt;
+        memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+        ws_pkt.type = HTTPD_WS_TYPE_BINARY;
+        ws_pkt.len = 8;
+        ws_pkt.payload = (uint8_t*)payload;
+
+        for(uint i = 0; i < clientCount; i++)
+        {
+            if((uint32_t*)httpd_sess_get_ctx(server, clientFds[i]) == WS_DATA)
+            {
+                LOGI("Sending Data to client ID: %d", clientFds[i]);
+                httpd_ws_send_frame_async(server, clientFds[i], &ws_pkt);
+            }
+        }
+    }
+}
+
+static void wsSessContextFreeFunc(void *ctx)
+{
+    return;     // Do nothing. Session context pointer is just used as an integer
 }
 
 static esp_err_t wsHandler(httpd_req_t *req)
 {
     if (req->method == HTTP_GET) {
-        ESP_LOGI(__func__, "Handshake done, the new connection was opened");
+        LOGI("Handshake done, Websocket connection was opened");
+        LOGI("  UserContext: %d", (uint32_t)req->user_ctx);
+
+        switch((uint32_t)req->user_ctx)
+        {
+            case WS_DEBUG:
+                LOGI("  Debug Socket Open");
+                break;
+
+            case WS_DATA:
+            LOGI("  Data Socket Open");
+                break;
+
+            default:
+                LOGI("  Unknown Socket Type!!!");
+                return ESP_FAIL;
+                break;
+        }
+
+        req->free_ctx = wsSessContextFreeFunc;
+        req->sess_ctx = req->user_ctx;
         return ESP_OK;
     }
+
     httpd_ws_frame_t ws_pkt;
     uint8_t *buf = NULL;
     memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
@@ -74,37 +144,37 @@ static esp_err_t wsHandler(httpd_req_t *req)
     /* Set max_len = 0 to get the frame len */
     esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
     if (ret != ESP_OK) {
-        ESP_LOGE(__func__, "httpd_ws_recv_frame failed to get frame len with %d", ret);
+        LOGE("httpd_ws_recv_frame failed to get frame len with %d", ret);
         return ret;
     }
-    ESP_LOGI(__func__, "frame len is %d", ws_pkt.len);
+    LOGI("frame len is %d", ws_pkt.len);
     if (ws_pkt.len) {
         /* ws_pkt.len + 1 is for NULL termination as we are expecting a string */
         buf = calloc(1, ws_pkt.len + 1);
         if (buf == NULL) {
-            ESP_LOGE(__func__, "Failed to calloc memory for buf");
+            LOGE("Failed to calloc memory for buf");
             return ESP_ERR_NO_MEM;
         }
         ws_pkt.payload = buf;
         /* Set max_len = ws_pkt.len to get the frame payload */
         ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
         if (ret != ESP_OK) {
-            ESP_LOGE(__func__, "httpd_ws_recv_frame failed with %d", ret);
+            LOGE("httpd_ws_recv_frame failed with %d", ret);
             free(buf);
             return ret;
         }
-        ESP_LOGI(__func__, "Got packet with message: %s", ws_pkt.payload);
+        LOGI("Got packet with message: %s", ws_pkt.payload);
     }
 
-    char sendMessage[] = "Connection Success";
+    char sendMessage[] = "Debugger Message Received";
     ws_pkt.len = strnlen(sendMessage, 50);
     ws_pkt.payload = (uint8_t*)sendMessage;
     ws_pkt.type = HTTPD_WS_TYPE_TEXT;
 
-    ESP_LOGI(__func__, "Send Frame");
+    LOGI("Send Frame");
     ret = httpd_ws_send_frame(req, &ws_pkt);
     if (ret != ESP_OK) {
-        ESP_LOGE(__func__, "httpd_ws_send_frame failed with %d", ret);
+        LOGE("httpd_ws_send_frame failed with %d", ret);
     }
     free(buf);
     return ret;
@@ -201,15 +271,25 @@ esp_err_t start_web_server(const char *base_path)
     ESP_LOGI(__func__, "Starting HTTP Server");
     ESP_ERROR_CHECK(httpd_start(&server, &config));
 
-    /* URI handler for Websocket */
-    httpd_uri_t ws = {
+    /* URI handler for Debugger Websocket */
+    httpd_uri_t wsDebugger = {
         .uri        = "/api/v1/ws/remoteDebugger",
         .method     = HTTP_GET,
         .handler    = wsHandler,
-        .user_ctx   = serverContext,
+        .user_ctx   = (void*)WS_DEBUG,
         .is_websocket = true
     };
-    httpd_register_uri_handler(server, &ws);
+    httpd_register_uri_handler(server, &wsDebugger);
+
+    /* URI handler for Debugger Websocket */
+    httpd_uri_t wsData = {
+        .uri        = "/api/v1/ws/data",
+        .method     = HTTP_GET,
+        .handler    = wsHandler,
+        .user_ctx   = (void*)WS_DATA,
+        .is_websocket = true
+    };
+    httpd_register_uri_handler(server, &wsData);
 
     /* URI handler for getting web server files */
     httpd_uri_t common_get_uri = {
