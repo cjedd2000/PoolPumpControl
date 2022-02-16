@@ -4,6 +4,10 @@
 #include "stdbool.h"
 #include "esp_vfs.h"
 #include <fcntl.h>
+#include <stdarg.h>
+#include <string.h>
+
+#include "projectLog.h"
 
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
 #define SCRATCH_BUFSIZE (10240)
@@ -17,31 +21,42 @@ typedef struct server_context {
 
 httpd_handle_t server;
 
-void sendNewDataToSockets(char* data, uint len)
+void sendToRemoteDebugger(const char *format, ...)
 {
     int clientFds[7];
     size_t clientCount;
 
+    char buffer[128];
+    uint16_t len;
+
+    va_list arg;
+
     if(server != NULL)
     {
         httpd_get_client_list(server, &clientCount, clientFds);
-        ESP_LOGI(__func__, "ClientList (Count: %d):", clientCount);
+        LOGI("ClientList (Count: %d):", clientCount);
         for(uint i = 0; i < clientCount; i++)
         {
-            ESP_LOGI("sendData", "  Index %02d: %d", i, clientFds[i]);
+            LOGI("  Client Index %02d: %d", i, clientFds[i]);
         }
+
+        va_start(arg, format);
+        vsnprintf(buffer, 128, format, arg);
+        va_end(arg);
+
+        len = strlen(buffer);
 
         httpd_ws_frame_t ws_pkt;
         memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
         ws_pkt.type = HTTPD_WS_TYPE_TEXT;
         ws_pkt.len = len;
-        ws_pkt.payload = (uint8_t*)data;
+        ws_pkt.payload = (uint8_t*)buffer;
 
         for(uint i = 0; i < clientCount; i++)
         {
-            ESP_LOGI(__func__, "Sending Data to client ID: %d", clientFds[i]);
+            LOGI("Sending Data to client ID: %d", clientFds[i]);
             httpd_ws_send_frame_async(server, clientFds[i], &ws_pkt);
-            ESP_LOGI(__func__, "Data Sent");
+            LOGI("Data Sent");
         }
     }
 }
@@ -188,7 +203,7 @@ esp_err_t start_web_server(const char *base_path)
 
     /* URI handler for Websocket */
     httpd_uri_t ws = {
-        .uri        = "/api/v1/ws",
+        .uri        = "/api/v1/ws/remoteDebugger",
         .method     = HTTP_GET,
         .handler    = wsHandler,
         .user_ctx   = serverContext,

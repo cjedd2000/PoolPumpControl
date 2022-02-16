@@ -86,12 +86,12 @@
                     
                 </div>
                 <hr>
-                <div id="debugTextField" class="debugTextConsole"></div>
+                <div id="debugTextFieldDiv" class="debugTextConsole"> <pre id="debugTextField"></pre> </div>
             </div>
         </div>
 
         <script>
-            var gateway = `ws://${window.location.hostname}/api/v1/ws`;
+            var gateway = `ws://${window.location.hostname}/api/v1/ws/remoteDebugger`;
             //var gateway = `ws://192.168.1.173/api/v1/ws`;
             var websocket;
 
@@ -118,7 +118,7 @@
                 console.log(event.data)
                 
                 document.getElementById('debugTextField').innerHTML += event.data +'<br>';
-                var scrollBody = document.getElementById('debugTextField');
+                var scrollBody = document.getElementById('debugTextFieldDiv');
 
                 if(automaticScrollDebugger) {
                     scrollBody.scrollTop = scrollBody.scrollHeight - scrollBody.clientHeight;

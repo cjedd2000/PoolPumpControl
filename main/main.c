@@ -144,14 +144,11 @@ esp_err_t init_fs(void)
 
 void Periodic5SecFuncs(void * parameters)
 {
-    TaskHandle_t handle;
-    TaskStatus_t taskDetails;
-
     TickType_t LastWakeTime;
     const TickType_t Frequency = 5 * xPortGetTickRateHz();      // 5 Second Delay
 
     float ambientTemperature, waterTemperature;
-    static char buffer[200];
+    static char buffer[100];
     static char buffer2[500];
 
     // Initialise the LastWakeTime variable with the current time.
@@ -165,9 +162,9 @@ void Periodic5SecFuncs(void * parameters)
         // Actions
         getTemperatures(&ambientTemperature, &waterTemperature);
 
-        snprintf(buffer, 49, "Temperatures:\nAmbient: %0.1fC\n  Water: %0.1fC", ambientTemperature, waterTemperature);
+        snprintf(buffer, 100, "Temperatures:\nAmbient: %0.1fC\n  Water: %0.1fC", ambientTemperature, waterTemperature);
         LOGI("%s", buffer);
-        sendNewDataToSockets(buffer, strlen(buffer));   
+        sendToRemoteDebugger(buffer, strlen(buffer));   
 
         vTaskList(buffer2);
         LOGI("\nTaskList:\n%s\n\n", buffer2);    

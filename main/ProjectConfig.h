@@ -4,3 +4,6 @@
 
 // Temperature Sensors
 #define TEMP_SENSOR_ONE_WIRE_GPIO 26
+
+// Logging
+#define ENABLE_REMOTE_DEBUGGER 1
