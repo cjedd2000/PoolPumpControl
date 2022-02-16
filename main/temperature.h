@@ -1,5 +1,8 @@
+#define MAX_READ_ATTEMPTS 5
+
 esp_err_t configureTempSensors();
 void getTemperatures();
+bool tempIsDisconnected(float temperature);
 
 typedef enum 
 {

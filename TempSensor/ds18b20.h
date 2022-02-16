@@ -20,7 +20,7 @@
 #define noInterrupts() portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;taskENTER_CRITICAL(&mux)
 #define interrupts() taskEXIT_CRITICAL(&mux)
 
-#define DEVICE_DISCONNECTED -196.6
+#define DEVICE_DISCONNECTED -196.6f
 #define DEVICE_DISCONNECTED_RAW -7040
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 #define pgm_read_byte(addr)   (*(const unsigned char *)(addr))

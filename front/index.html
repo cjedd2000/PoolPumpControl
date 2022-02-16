@@ -70,7 +70,7 @@
             <div class="staticInterface">
                 <h2>Pool Pump Controller</h2>
                 <hr>
-                <div id="pumpState"> Connecting... </div>
+                <div id="pumpState"> Connecting to Server... </div>
                 <div id="waterTemp"></div>
                 <div id="ambientTemp"></div>
 
@@ -103,6 +103,9 @@
             var debuggerWs;
             var dataWs;
 
+            var dataConnectionAttempts = 0;
+            var dataSocketTimeout;
+
             var automaticScrollDebugger = true;
 
             function initDebuggerWebSocket() {
@@ -128,6 +131,12 @@
 
             function onDataOpen(event) {
                 console.log('Data connection opened');
+                dataConnectionAttempts = 0;
+                setDataTimeout();
+            }
+
+            function setDataTimeout() {
+                dataSocketTimeout = setTimeout(function () { dataWs.close(); console.log('closed'); }, 20000);
             }
 
             function onDebuggerClose(event) {
@@ -137,6 +146,9 @@
 
             function onDataClose(event) {
                 console.log('Data connection closed');
+                document.getElementById('pumpState').innerHTML = 'Disconnected Attempting to Reconnect (' + ++dataConnectionAttempts +')...';
+                document.getElementById('waterTemp').innerHTML = '';
+                document.getElementById('ambientTemp').innerHTML = '';
                 setTimeout(initDataWebSocket, 2000);
             }
 
@@ -156,6 +168,9 @@
                 var type;
                 var dataInt;
                 var dataFloat;
+
+                clearTimeout(dataSocketTimeout);
+                setDataTimeout();
 
                 console.log("Data Received: ")
                 console.log(event.data)
@@ -197,11 +212,27 @@
                         break;
 
                     case WS_DATA_WATER_TEMP:
-                        document.getElementById('waterTemp').innerHTML = 'Water Temperature: ' + dataFloat.toFixed(2) + ' C';
+                        if(dataFloat > -190.0)
+                        {
+                            document.getElementById('waterTemp').innerHTML = 'Water Temperature: ' + dataFloat.toFixed(2) + ' C';
+                        }
+                        else
+                        {
+                            // Error in temperature Reading
+                            document.getElementById('waterTemp').innerHTML = 'Water Temperature: Sensor Error';
+                        }
                         break;
 
                     case WS_DATA_AMB_TEMP:
-                        document.getElementById('ambientTemp').innerHTML = 'Ambient Temperature: ' + dataFloat.toFixed(2) + ' C';
+                        if(dataFloat > -190.0)
+                        {
+                            document.getElementById('ambientTemp').innerHTML = 'Ambient Temperature: ' + dataFloat.toFixed(2) + ' C';
+                        }
+                        else
+                        {
+                            // Error in temperature Reading
+                            document.getElementById('ambientTemp').innerHTML = 'Ambient Temperature: Sensor Error';
+                        }
                         break;
 
                     default:
@@ -212,10 +243,10 @@
 
             window.addEventListener('load', onLoad);
             function onLoad(event) {
-                initDebuggerWebSocket();
-                initDataWebSocket();
                 initButton();
                 initAutoScrollCheckbox();
+                setTimeout(initDebuggerWebSocket, 200);
+                setTimeout(initDataWebSocket, 200);
             }
 
             function initButton() {

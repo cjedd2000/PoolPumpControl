@@ -44,13 +44,6 @@ void sendToRemoteDebugger(const char *format, ...)
     if(server != NULL)
     {
         httpd_get_client_list(server, &clientCount, clientFds);
-        LOGI("ClientList (Count: %d):", clientCount);
-        for(uint i = 0; i < clientCount; i++)
-        {
-            LOGI("  Client Index %02d: %d", i, clientFds[i]);
-            temp = httpd_sess_get_ctx(server, clientFds[i]);
-            LOGI("   Context: %d", (uint32_t)temp);
-        }
 
         va_start(arg, format);
         vsnprintf(buffer, 128, format, arg);
@@ -68,7 +61,6 @@ void sendToRemoteDebugger(const char *format, ...)
         {
             if((uint32_t*)httpd_sess_get_ctx(server, clientFds[i]) == WS_DEBUG)
             {
-                LOGI("Sending Data to client ID: %d", clientFds[i]);
                 httpd_ws_send_frame_async(server, clientFds[i], &ws_pkt);
             }
         }

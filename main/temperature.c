@@ -26,11 +26,55 @@ void getTempAddresses(DeviceAddress *tempSensorAddresses) {
     }
 }
 
+bool tempIsDisconnected(float temperature)
+{
+    if(temperature < (DEVICE_DISCONNECTED + 1.0f))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
 void getTemperatures(float *ambTemp, float *waterTemp)
 {
+    uint8_t readAttempts = 0;
+    *ambTemp = DEVICE_DISCONNECTED;
+    *waterTemp = DEVICE_DISCONNECTED;
+
     ds18b20_requestTemperatures();
-    *ambTemp = ds18b20_getTempC((DeviceAddress *)tempSensors[AMBIENT_TEMP_SENSOR]);
-    *waterTemp = ds18b20_getTempC((DeviceAddress *)tempSensors[WATER_TEMP_SENSOR]);
+
+    while((readAttempts++ < MAX_READ_ATTEMPTS) && tempIsDisconnected(*ambTemp))
+    {
+        *ambTemp = ds18b20_getTempC((DeviceAddress *)tempSensors[AMBIENT_TEMP_SENSOR]);
+
+        if(*ambTemp < (DEVICE_DISCONNECTED + 1.0f))
+        {
+            LOGW("Error Reading Ambient Temperature Attempt %d", readAttempts);
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    readAttempts = 0;
+    
+    while((readAttempts++ < MAX_READ_ATTEMPTS) && tempIsDisconnected(*waterTemp))
+    {
+        *waterTemp = ds18b20_getTempC((DeviceAddress *)tempSensors[WATER_TEMP_SENSOR]);
+
+        if(*waterTemp < (DEVICE_DISCONNECTED + 1.0f))
+        {
+            LOGW("Error Reading Water Temperature Attempt %d", readAttempts);
+        }
+        else
+        {
+            break;
+        }
+    }
 }
 
 esp_err_t configureTempSensors()
