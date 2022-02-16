@@ -136,7 +136,7 @@
             }
 
             function setDataTimeout() {
-                dataSocketTimeout = setTimeout(function () { dataWs.close(); console.log('closed'); }, 20000);
+                dataSocketTimeout = setTimeout(function () { dataWs.close(); console.log('Data Socket Timeout'); }, 20000);
             }
 
             function onDebuggerClose(event) {
