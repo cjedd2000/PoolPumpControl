@@ -131,37 +131,60 @@ void sendData(wsDataType_t dataType, uint32_t data)
     }
 }
 
+/**
+ * @brief 
+ * Blank Session Context Free Function. Session Context pointers are just used to save what type of connection
+ * is intended to be used with the socket and don't actually point to anyting. This function is intended to 
+ * override the Session Context Free function so the default function doesn't error when tryhing to free
+ * a non existant pointer.
+ * 
+ * @param ctx Required for free function. Will contain the integer passed for the Session Context.
+ */
 static void wsSessContextFreeFunc(void *ctx)
 {
-    return;     // Do nothing. Session context pointer is just used as an integer
+    return;     // Do nothing
 }
 
+/**
+ * @brief 
+ * Websocket handler function. 
+ * 
+ * @param req 
+ * @return esp_err_t 
+ */
 static esp_err_t wsHandler(httpd_req_t *req)
 {
     if (req->method == HTTP_GET) {
         LOGI("Handshake done, Websocket connection was opened");
-        LOGI("  UserContext: %d", (uint32_t)req->user_ctx);
 
         switch((uint32_t)req->user_ctx)
         {
             case WS_DEBUG:
-                LOGI("  Debug Socket Open");
+                LOGI("Handshake done, Debug Websocket opened");
                 break;
 
             case WS_DATA:
-            LOGI("  Data Socket Open");
+            LOGI("Handshake done, Data Websocket opened");
                 break;
 
             default:
-                LOGI("  Unknown Socket Type!!!");
+                LOGI("Handshake done, Unknown Websocket");
                 return ESP_FAIL;
                 break;
         }
 
+        /**
+         * Assign session context to the requests user context to mark what type
+         * of socket connection this is for use later. Assign free context function
+         * to function that does noting to prevent the server from trying to free 
+         * a non existent pointer stored in the session context field.
+         */
         req->free_ctx = wsSessContextFreeFunc;
         req->sess_ctx = req->user_ctx;
         return ESP_OK;
     }
+
+    // Start handling data received from websockets here. Not Implemented yet, place holder only.
 
     httpd_ws_frame_t ws_pkt;
     uint8_t *buf = NULL;
@@ -226,7 +249,13 @@ static esp_err_t set_content_type_from_file(httpd_req_t *req, const char *filepa
     return httpd_resp_set_type(req, type);
 }
 
-/* Send HTTP response with the contents of the requested file */
+/**
+ * @brief 
+ * Handles common HTTP Requests for webpages.
+ * 
+ * @param req 
+ * @return esp_err_t 
+ */
 static esp_err_t common_get_handler(httpd_req_t *req)
 {
     char filepath[FILE_PATH_MAX];
@@ -278,6 +307,13 @@ static esp_err_t common_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/**
+ * @brief 
+ * Top Level Function to start the webserver and register URIs
+ * 
+ * @param base_path base path for webserver files
+ * @return esp_err_t 
+ */
 esp_err_t start_web_server(const char *base_path)
 {
     server_context_t *serverContext = calloc(1, sizeof(server_context_t));
@@ -302,17 +338,17 @@ esp_err_t start_web_server(const char *base_path)
         .uri        = "/api/v1/ws/remoteDebugger",
         .method     = HTTP_GET,
         .handler    = wsHandler,
-        .user_ctx   = (void*)WS_DEBUG,
+        .user_ctx   = (void*)WS_DEBUG,  // Indicate this is a debugger websocket
         .is_websocket = true
     };
     httpd_register_uri_handler(server, &wsDebugger);
 
-    /* URI handler for Debugger Websocket */
+    /* URI handler for Data Websocket */
     httpd_uri_t wsData = {
         .uri        = "/api/v1/ws/data",
         .method     = HTTP_GET,
         .handler    = wsHandler,
-        .user_ctx   = (void*)WS_DATA,
+        .user_ctx   = (void*)WS_DATA,   // Indicate this is a data websocket
         .is_websocket = true
     };
     httpd_register_uri_handler(server, &wsData);
