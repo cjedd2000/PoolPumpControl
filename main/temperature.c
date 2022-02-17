@@ -1,31 +1,56 @@
+/**
+ * @file temperature.c
+ * 
+ * @brief 
+ * Wrapper around driver for temperature sensor to handle all temperature functions and error checking
+ * 
+ */
+
+// Project Includes
 #include "ProjectConfig.h"
-#include "ds18b20.h"
-#include "esp_err.h"
 #include "projectLog.h"
 #include "temperature.h"
 
-// Only Temporary
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 
-DeviceAddress tempSensors[TEMP_SENSOR_COUNT];
-unsigned int sensorsFound = 0;
+// DS18B20 Driver
+#include "ds18b20.h"
 
+/* List of Connected Device Addresses */
+DeviceAddress TempSensors[TEMP_SENSOR_COUNT];
+
+/* Current number of sensors known on bus */
+unsigned int SensorsFound = 0;
+
+/**
+ * @brief Searches bus for available temperature sensors
+ * 
+ * @param tempSensorAddresses Array to store device addresses in
+ */
 void getTempAddresses(DeviceAddress *tempSensorAddresses) {
 	
 	reset_search();
 
-    while (search(tempSensorAddresses[sensorsFound],true)) {
-		sensorsFound++;
-		if (sensorsFound == 2) break;
+    // Search through all addresses or until all sensors found
+    while (search(tempSensorAddresses[SensorsFound],true)) {
+		SensorsFound++;
+		if (SensorsFound == TEMP_SENSOR_COUNT) break;
 	}
 
-    if(sensorsFound != 2)
+    // Got to End of search and didn't find expected number of sensors
+    if(SensorsFound != TEMP_SENSOR_COUNT)
     {
-        LOGW("Expected 2 Temperature Sensors. Only Found %d", sensorsFound);
+        LOGW("Expected %d Temperature Sensors. Only Found %d", TEMP_SENSOR_COUNT, SensorsFound);
     }
 }
 
+/**
+ * @brief 
+ * Checks to see if reported temperature means sensor is disconnected
+ * 
+ * @param temperature temperature to check
+ * 
+ * @return true if device is considered disconnected, or false otherwise.
+ */
 bool tempIsDisconnected(float temperature)
 {
     if(temperature < (DEVICE_DISCONNECTED + 1.0f))
@@ -38,6 +63,13 @@ bool tempIsDisconnected(float temperature)
     }
 }
 
+/**
+ * @brief 
+ * Read temperatures from connected temperature sensors
+ * 
+ * @param ambTemp 
+ * @param waterTemp 
+ */
 void getTemperatures(float *ambTemp, float *waterTemp)
 {
     uint8_t readAttempts = 0;
@@ -48,7 +80,7 @@ void getTemperatures(float *ambTemp, float *waterTemp)
 
     while((readAttempts++ < MAX_READ_ATTEMPTS) && tempIsDisconnected(*ambTemp))
     {
-        *ambTemp = ds18b20_getTempC((DeviceAddress *)tempSensors[AMBIENT_TEMP_SENSOR]);
+        *ambTemp = ds18b20_getTempC((DeviceAddress *)TempSensors[AMBIENT_TEMP_SENSOR]);
 
         if(*ambTemp < (DEVICE_DISCONNECTED + 1.0f))
         {
@@ -64,7 +96,7 @@ void getTemperatures(float *ambTemp, float *waterTemp)
     
     while((readAttempts++ < MAX_READ_ATTEMPTS) && tempIsDisconnected(*waterTemp))
     {
-        *waterTemp = ds18b20_getTempC((DeviceAddress *)tempSensors[WATER_TEMP_SENSOR]);
+        *waterTemp = ds18b20_getTempC((DeviceAddress *)TempSensors[WATER_TEMP_SENSOR]);
 
         if(*waterTemp < (DEVICE_DISCONNECTED + 1.0f))
         {
@@ -77,14 +109,20 @@ void getTemperatures(float *ambTemp, float *waterTemp)
     }
 }
 
+/**
+ * @brief 
+ * Configure One Wire Bus, search for and configure temperature sensors.
+ * 
+ * @return esp_err_t 
+ */
 esp_err_t configureTempSensors()
 {
     ds18b20_init(TEMP_SENSOR_ONE_WIRE_GPIO);
-	getTempAddresses(tempSensors);
-	ds18b20_setResolution(tempSensors,2,10);
+	getTempAddresses(TempSensors);
+	ds18b20_setResolution(TempSensors, TEMP_SENSOR_COUNT, SENSOR_RESOLUTION);
 
-    LOGI("Temperature Address 0: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x \n", tempSensors[0][0],tempSensors[0][1],tempSensors[0][2],tempSensors[0][3],tempSensors[0][4],tempSensors[0][5],tempSensors[0][6],tempSensors[0][7]);
-    LOGI("Temperature Address 1: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x \n", tempSensors[1][0],tempSensors[1][1],tempSensors[1][2],tempSensors[1][3],tempSensors[1][4],tempSensors[1][5],tempSensors[1][6],tempSensors[1][7]);
+    LOGI("Temperature Address 0: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x \n", TempSensors[0][0],TempSensors[0][1],TempSensors[0][2],TempSensors[0][3],TempSensors[0][4],TempSensors[0][5],TempSensors[0][6],TempSensors[0][7]);
+    LOGI("Temperature Address 1: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x \n", TempSensors[1][0],TempSensors[1][1],TempSensors[1][2],TempSensors[1][3],TempSensors[1][4],TempSensors[1][5],TempSensors[1][6],TempSensors[1][7]);
 
     return ESP_OK;
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "esp_err.h"
+
 typedef enum
 {
     WS_DATA_NONE = 0,
