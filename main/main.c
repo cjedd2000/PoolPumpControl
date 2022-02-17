@@ -1,35 +1,45 @@
-#include <stdio.h>
+/**
+ * @file main.c
+ * @brief 
+ * Main application file. Configures system and starts all tasks.
+ */
+
+// ESP IDF Includes
 #include "nvs_flash.h"
 #include "mdns.h"
 #include "lwip/apps/netbiosns.h"
-#include "esp_vfs_semihost.h"
-#include "esp_log.h"
 #include "esp_spiffs.h"
-
 #include "esp_wifi.h"
 
+// Project Inclues
 #include "ProjectConfig.h"
 #include "WifiConfig.h"
 #include "webServer.h"
 #include "temperature.h"
-
 #include "ds18b20.h"
 #include "projectLog.h"
 
+// FreeRTOS Includes
 #include "freertos/task.h"
 
-#define FLOAT_TO_BITS32(floatVal) (*((uint32_t*)&floatVal)))
-
+/**
+ * @brief 
+ * Union used to reinterpret floats and uint32_t types for data transmission over sockets.
+ */
 typedef union
 {
     uint32_t i;
     float f;
 } data32_t;
 
+/**
+ * @brief 
+ * Attempts to re connect to WiFi when it disconnects.
+ */
 static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
 {
-    ESP_LOGI("on_wifi_disconnect", "Wi-Fi disconnected, trying to reconnect...");
+    LOGI("Wi-Fi disconnected, trying to reconnect...");
     esp_err_t err = esp_wifi_connect();
     if (err == ESP_ERR_WIFI_NOT_STARTED) {
         return;
@@ -37,29 +47,46 @@ static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
     ESP_ERROR_CHECK(err);
 }
 
+/**
+ * @brief 
+ * For future IPv6 support
+ */
 static void on_wifi_connect(void *esp_netif, esp_event_base_t event_base,
                             int32_t event_id, void *event_data)
 {
     esp_netif_create_ip6_linklocal(esp_netif);
 }
 
-// Edited this function
+/**
+ * @brief 
+ * Logs IP Address
+ */
 static void on_got_ip(void *arg, esp_event_base_t event_base,
                       int32_t event_id, void *event_data)
 {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-    ESP_LOGI("on_got_ip", "Got IPv4 event: Interface \"%s\" address: " IPSTR, esp_netif_get_desc(event->esp_netif), IP2STR(&event->ip_info.ip));
+    LOGI("Got IPv4 event: Interface \"%s\" address: " IPSTR, esp_netif_get_desc(event->esp_netif), IP2STR(&event->ip_info.ip));
 }
 
+/**
+ * @brief 
+ * Logs IPv6 Address
+ */
 static void on_got_ipv6(void *arg, esp_event_base_t event_base,
                         int32_t event_id, void *event_data)
 {
     ip_event_got_ip6_t *event = (ip_event_got_ip6_t *)event_data;
 
-    ESP_LOGI("on_got_ipv6", "Got IPv6 event: Interface \"%s\" address: " IPV6STR "", esp_netif_get_desc(event->esp_netif),
+    LOGI("Got IPv6 event: Interface \"%s\" address: " IPV6STR "", esp_netif_get_desc(event->esp_netif),
              IPV62STR(event->ip6_info.ip));
 }
 
+/**
+ * @brief 
+ * Starts WiFi Connection
+ * 
+ * @return esp_netif_t* 
+ */
 static esp_netif_t *wifi_start(void)
 {
     char *desc;
@@ -94,7 +121,7 @@ static esp_netif_t *wifi_start(void)
             .threshold.authmode = WIFI_AUTH_OPEN,
         },
     };
-    ESP_LOGI("wifi_start", "Connecting to %s...", wifi_config.sta.ssid);
+    LOGI("Connecting to %s...", wifi_config.sta.ssid);
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
@@ -102,6 +129,10 @@ static esp_netif_t *wifi_start(void)
     return netif;
 }
 
+/**
+ * @brief 
+ * Configures MDNS
+ */
 static void initialise_mdns(void)
 {
     mdns_init();
@@ -117,23 +148,29 @@ static void initialise_mdns(void)
                                      sizeof(serviceTxtData) / sizeof(serviceTxtData[0])));
 }
 
+/**
+ * @brief 
+ * Configures file system to be used for http server
+ * 
+ * @return esp_err_t 
+ */
 esp_err_t init_fs(void)
 {
     esp_vfs_spiffs_conf_t conf = {
         .base_path = WEB_MOUNT_POINT,
         .partition_label = NULL,
-        .max_files = 5,
+        .max_files = 7,
         .format_if_mount_failed = false
     };
     esp_err_t ret = esp_vfs_spiffs_register(&conf);
 
     if (ret != ESP_OK) {
         if (ret == ESP_FAIL) {
-            ESP_LOGE("init_fs", "Failed to mount or format filesystem");
+            LOGE("Failed to mount or format filesystem");
         } else if (ret == ESP_ERR_NOT_FOUND) {
-            ESP_LOGE("init_fs", "Failed to find SPIFFS partition");
+            LOGE("Failed to find SPIFFS partition");
         } else {
-            ESP_LOGE("init_fs", "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+            LOGE("Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
         }
         return ESP_FAIL;
     }
@@ -141,14 +178,19 @@ esp_err_t init_fs(void)
     size_t total = 0, used = 0;
     ret = esp_spiffs_info(NULL, &total, &used);
     if (ret != ESP_OK) {
-        ESP_LOGE("init_fs", "Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
+        LOGE("Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
     } else {
-        ESP_LOGI("init_fs", "Partition size: total: %d, used: %d", total, used);
+        LOGI("Partition size: total: %d, used: %d", total, used);
     }
     return ESP_OK;
 }
 
-
+/**
+ * @brief 
+ * Temporary function for testing various features.
+ * 
+ * @param parameters Unused
+ */
 void Periodic5SecFuncs(void * parameters)
 {
     TickType_t LastWakeTime;
@@ -190,7 +232,10 @@ void Periodic5SecFuncs(void * parameters)
     }
 }
 
-
+/**
+ * @brief 
+ * Entry Point for ESP IDF. Default task created. Automatically deleted by SDK if returns.
+ */
 void app_main(void)
 {
     configureTempSensors();
@@ -207,5 +252,6 @@ void app_main(void)
 
     ESP_ERROR_CHECK(start_web_server(WEB_MOUNT_POINT));
 
+    // Start testing task
     xTaskCreate(&Periodic5SecFuncs, "5SecFuncs", ESP_TASK_MAIN_STACK, NULL, 10, NULL);
 }

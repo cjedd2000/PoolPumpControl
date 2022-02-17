@@ -35,7 +35,8 @@
     "initializer_list": "c",
     "regex": "c",
     "*.tcc": "c",
-    "esp_https_server.h": "c"
+    "esp_https_server.h": "c",
+    "nvs_flash.h": "c"
   },
   "idf.portWin": "COM5"
 }
