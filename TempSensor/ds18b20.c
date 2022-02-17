@@ -210,7 +210,6 @@ void ds18b20_requestTemperatures(){
 	ds18b20_reset();
 	ds18b20_write_byte(SKIPROM);
 	ds18b20_write_byte(GETTEMP);
-    unsigned long start = esp_timer_get_time() / 1000ULL;
 
 	vTaskDelay(millisToWaitForConversion()/portTICK_PERIOD_MS);
 
