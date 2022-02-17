@@ -1,3 +1,13 @@
+#pragma once
+/**
+ * @file ProjectConfig.h
+ * 
+ * @brief 
+ * Top Level Configurations for Project
+ * 
+ */
+
+
 // Web Server
 #define MDNS_HOST_NAME "PoolPumpCtrl"
 #define WEB_MOUNT_POINT "/www"

@@ -1,7 +1,14 @@
-//#pragma once
+#pragma once
+/**
+ * @file projectLog.h
+ * 
+ * @brief 
+ * Wrapper around ESP_LOG* functions that automatically set a tag from the function name.
+ * Also sends out logs on the debugger websocket when running.
+ * 
+ */
 
 #include "esp_log.h"
-#include "ProjectConfig.h"
 #include "webServer.h"
 #include <string.h>
 
