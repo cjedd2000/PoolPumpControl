@@ -1,3 +1,12 @@
+/**
+ * @file webServer.c
+ * 
+ * @brief 
+ * Handles All Webserver functions.
+ * 
+ */
+
+// ESP IDF Includes
 #include "esp_http_server.h"
 #include "esp_err.h"
 #include "stdbool.h"
@@ -6,6 +15,7 @@
 #include <stdarg.h>
 #include <string.h>
 
+// Project Incudes
 #include "projectLog.h"
 
 
@@ -21,6 +31,9 @@ typedef struct server_context {
 
 httpd_handle_t server;
 
+/**
+ * Enumeration for Websocket Types
+ */
 typedef enum
 {
     WS_NONE = 0,
@@ -28,38 +41,46 @@ typedef enum
     WS_DATA
 } socketType_t;
 
+/**
+ * @brief 
+ * Sends string out to remote debugger websockets. Parameters work like standard printf()
+ */
 void sendToRemoteDebugger(const char *format, ...)
 {
     int clientFds[7];
     size_t clientCount;
 
-    char buffer[128];
+    char buffer[128];   // Buffer for building string
     uint16_t len;
 
     va_list arg;
 
-    //struct sock_db* temp;
-    void * temp;
-
+    // Make sure server is running
     if(server != NULL)
     {
-        httpd_get_client_list(server, &clientCount, clientFds);
+        // Get Client list. Return immediately if there is an error with the list.
+        if(httpd_get_client_list(server, &clientCount, clientFds) != ESP_OK)
+            return;
 
+        // Create string from variable arg list
         va_start(arg, format);
         vsnprintf(buffer, 128, format, arg);
         va_end(arg);
 
         len = strlen(buffer);
 
+        // Create Websocket packet
         httpd_ws_frame_t ws_pkt;
         memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
         ws_pkt.type = HTTPD_WS_TYPE_TEXT;
         ws_pkt.len = len;
         ws_pkt.payload = (uint8_t*)buffer;
 
+        // Send to all open debugger Websockets
         for(uint i = 0; i < clientCount; i++)
         {
-            if((uint32_t*)httpd_sess_get_ctx(server, clientFds[i]) == WS_DEBUG)
+            // Check that this connection is a Debug Websocket
+            if((uint32_t)httpd_sess_get_ctx(server, clientFds[i]) == WS_DEBUG)
             {
                 httpd_ws_send_frame_async(server, clientFds[i], &ws_pkt);
             }
@@ -67,6 +88,13 @@ void sendToRemoteDebugger(const char *format, ...)
     }
 }
 
+/**
+ * @brief 
+ * Sends Data out on all open Data Websockets
+ * 
+ * @param dataType Data Type Specifier to add to packet
+ * @param data Data to be sent
+ */
 void sendData(wsDataType_t dataType, uint32_t data)
 {
     int clientFds[7];
@@ -76,19 +104,25 @@ void sendData(wsDataType_t dataType, uint32_t data)
     payload[0] = dataType;
     payload[1] = data;
 
+    // Make sure server is running
     if(server != NULL)
     {
-        httpd_get_client_list(server, &clientCount, clientFds);
+        // Get Client list. Return immediately if there is an error with the list.
+        if(httpd_get_client_list(server, &clientCount, clientFds) != ESP_OK)
+            return;
 
+        // Create Websocket packet
         httpd_ws_frame_t ws_pkt;
         memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
         ws_pkt.type = HTTPD_WS_TYPE_BINARY;
         ws_pkt.len = 8;
         ws_pkt.payload = (uint8_t*)payload;
 
+        // Send to all open data Websockets
         for(uint i = 0; i < clientCount; i++)
         {
-            if((uint32_t*)httpd_sess_get_ctx(server, clientFds[i]) == WS_DATA)
+            // Check that socket is a data websocket
+            if((uint32_t)httpd_sess_get_ctx(server, clientFds[i]) == WS_DATA)
             {
                 LOGI("Sending Data to client ID: %d", clientFds[i]);
                 httpd_ws_send_frame_async(server, clientFds[i], &ws_pkt);

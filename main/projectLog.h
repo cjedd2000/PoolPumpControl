@@ -8,9 +8,13 @@
  * 
  */
 
+// SDK Includes
 #include "esp_log.h"
-#include "webServer.h"
 #include <string.h>
+
+// Project Includes
+#include "webServer.h"
+#include "ProjectConfig.h"
 
 #if(ENABLE_REMOTE_DEBUGGER != 1)
     #define LOGI(Message, ...) ESP_LOGI(__FUNCTION__, Message, ##__VA_ARGS__)

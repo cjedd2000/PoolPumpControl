@@ -1,4 +1,10 @@
 #pragma once
+/**
+ * @file webServer.h
+ * 
+ * @brief 
+ * Handles All Webserver functions.
+ */
 
 #include "esp_err.h"
 
