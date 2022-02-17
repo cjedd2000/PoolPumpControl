@@ -47,6 +47,7 @@ static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
     ESP_ERROR_CHECK(err);
 }
 
+#ifdef CONFIG_EXAMPLE_CONNECT_IPV6
 /**
  * @brief 
  * For future IPv6 support
@@ -56,6 +57,7 @@ static void on_wifi_connect(void *esp_netif, esp_event_base_t event_base,
 {
     esp_netif_create_ip6_linklocal(esp_netif);
 }
+#endif
 
 /**
  * @brief 
@@ -68,6 +70,7 @@ static void on_got_ip(void *arg, esp_event_base_t event_base,
     LOGI("Got IPv4 event: Interface \"%s\" address: " IPSTR, esp_netif_get_desc(event->esp_netif), IP2STR(&event->ip_info.ip));
 }
 
+#ifdef CONFIG_EXAMPLE_CONNECT_IPV6
 /**
  * @brief 
  * Logs IPv6 Address
@@ -80,6 +83,7 @@ static void on_got_ipv6(void *arg, esp_event_base_t event_base,
     LOGI("Got IPv6 event: Interface \"%s\" address: " IPV6STR "", esp_netif_get_desc(event->esp_netif),
              IPV62STR(event->ip6_info.ip));
 }
+#endif
 
 /**
  * @brief 
@@ -198,7 +202,7 @@ void Periodic5SecFuncs(void * parameters)
 
     bool temp = false;
 
-    data32_t ambientTemperature, waterTemperature;
+    data32_t temperatures[TEMP_SENSOR_COUNT];
 
     static char buffer[100];
     static char buffer2[500];
@@ -212,13 +216,13 @@ void Periodic5SecFuncs(void * parameters)
         vTaskDelayUntil( &LastWakeTime, FunctionPeriod );
 
         // Actions
-        getTemperatures(&ambientTemperature.f, &waterTemperature.f);
+        getTemperatures((float *)temperatures);
 
-        snprintf(buffer, 100, "Temperatures:\nAmbient: %0.1fC\n  Water: %0.1fC", ambientTemperature.f, waterTemperature.f);
+        snprintf(buffer, 100, "Temperatures:\nAmbient: %0.1fC\n  Water: %0.1fC", temperatures[AMBIENT_TEMP_SENSOR].f, temperatures[WATER_TEMP_SENSOR].f);
         LOGI("%s", buffer);
 
-        sendData(WS_DATA_WATER_TEMP, waterTemperature.i);
-        sendData(WS_DATA_AMB_TEMP, ambientTemperature.i);
+        sendData(WS_DATA_WATER_TEMP, temperatures[WATER_TEMP_SENSOR].i);
+        sendData(WS_DATA_AMB_TEMP, temperatures[AMBIENT_TEMP_SENSOR].i);
 
         if(temp)
             sendData(WS_DATA_PUMP_STATE, 1);

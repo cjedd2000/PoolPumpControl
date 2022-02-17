@@ -18,7 +18,7 @@
 
 /* Public Function Prototypes */
 esp_err_t configureTempSensors();
-void getTemperatures();
+void getTemperatures(float *temperatures);
 bool tempIsDisconnected(float temperature);
 
 /* Temperature Sensor ID Enumeration */
