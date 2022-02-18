@@ -100,6 +100,8 @@
             const WS_DATA_WATER_TEMP = 2;
             const WS_DATA_AMB_TEMP = 3;
 
+            const MAX_DEBUG_CHARS = 30000;
+
             var debuggerWs;
             var dataWs;
 
@@ -155,8 +157,12 @@
             function onDebuggerMessage(event) {
                 console.log("Debugger Received: ")
                 console.log(event.data)
+
+                var newText = document.getElementById('debugTextField').innerHTML + event.data +'<br>';
+                newText = newText.substring(newText.length - MAX_DEBUG_CHARS);
                 
-                document.getElementById('debugTextField').innerHTML += event.data +'<br>';
+                document.getElementById('debugTextField').innerHTML = newText;
+
                 var scrollBody = document.getElementById('debugTextFieldDiv');
 
                 if(automaticScrollDebugger) {
