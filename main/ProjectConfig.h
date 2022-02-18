@@ -17,3 +17,6 @@
 
 // Logging
 #define ENABLE_REMOTE_DEBUGGER 1
+
+// Time
+#define TIMEZONE "EST5EDT,M3.2.0/2,M11.1.0"

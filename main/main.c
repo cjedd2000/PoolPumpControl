@@ -18,6 +18,7 @@
 #include "temperature.h"
 #include "ds18b20.h"
 #include "projectLog.h"
+#include "sysTime.h"
 
 // FreeRTOS Includes
 #include "freertos/task.h"
@@ -204,8 +205,7 @@ void Periodic5SecFuncs(void * parameters)
 
     data32_t temperatures[TEMP_SENSOR_COUNT];
 
-    static char buffer[100];
-    static char buffer2[500];
+    static char buffer[500];
 
     // Initialise the LastWakeTime variable with the current time.
     LastWakeTime = xTaskGetTickCount();
@@ -231,8 +231,18 @@ void Periodic5SecFuncs(void * parameters)
 
         temp = !temp;
 
-        vTaskList(buffer2);
-        //LOGI("\nTaskList:\n%s\n\n", buffer2);    
+        //vTaskList(buffer);
+        //LOGI("\nTaskList:\n%s\n\n", buffer);   
+
+        if(isTimeSet())
+        {
+            getTimeStr(buffer, 100);
+            LOGI("Current Time: %s", buffer); 
+        }
+        else
+        {
+            LOGI("Time has not been set yet");
+        }
     }
 }
 
@@ -255,6 +265,8 @@ void app_main(void)
     ESP_ERROR_CHECK(init_fs());
 
     ESP_ERROR_CHECK(start_web_server(WEB_MOUNT_POINT));
+
+    timeInit(TIMEZONE);
 
     // Start testing task
     xTaskCreate(&Periodic5SecFuncs, "5SecFuncs", ESP_TASK_MAIN_STACK, NULL, 10, NULL);

@@ -2,6 +2,7 @@ idf_component_register(SRCS "main.c"
                             "webServer.c"
                             "temperature.c"
                             "../TempSensor/ds18b20.c"
+                            "sysTime.c"
                     INCLUDE_DIRS "."
                                  "../TempSensor")
 
