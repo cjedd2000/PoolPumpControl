@@ -29,6 +29,18 @@ typedef struct server_context {
     char           scratch[SCRATCH_BUFSIZE];
 } server_context_t;
 
+/**
+ * Stuct for queued websocket packets
+ */
+typedef struct
+{
+    httpd_ws_frame_t ws_pkt;    // Packet to send
+    int fd;                     // Websocket file descriptor to send with
+} queued_ws_frame_t;
+
+/**
+ * Server Handle
+ */
 httpd_handle_t server;
 
 /**
@@ -37,9 +49,28 @@ httpd_handle_t server;
 typedef enum
 {
     WS_NONE = 0,
-    WS_DEBUG,
-    WS_DATA
+    WS_DEBUG = 111,
+    WS_DATA = 222
 } socketType_t;
+
+/**
+ * @brief 
+ * Function meant to execute in httpd context due to calling httpd_queue_work() and send frame
+ * 
+ * @param arg pointer to httpd_ws_frame_t to send over websocket
+ */
+static void wsAsyncSend(void *arg)
+{
+    queued_ws_frame_t* queuedFrame = (queued_ws_frame_t*)arg;
+
+    httpd_ws_send_frame_async(server, queuedFrame->fd, &queuedFrame->ws_pkt);
+
+    // Free Data that has been sent
+    free(queuedFrame->ws_pkt.payload);
+
+    // Free the frame data now that it is not needed
+    free(queuedFrame);
+}
 
 /**
  * @brief 
@@ -69,20 +100,26 @@ void sendToRemoteDebugger(const char *format, ...)
 
         len = strlen(buffer);
 
-        // Create Websocket packet
-        httpd_ws_frame_t ws_pkt;
-        memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
-        ws_pkt.type = HTTPD_WS_TYPE_TEXT;
-        ws_pkt.len = len;
-        ws_pkt.payload = (uint8_t*)buffer;
-
         // Send to all open debugger Websockets
         for(uint i = 0; i < clientCount; i++)
         {
             // Check that this connection is a Debug Websocket
             if((uint32_t)httpd_sess_get_ctx(server, clientFds[i]) == WS_DEBUG)
             {
-                httpd_ws_send_frame_async(server, clientFds[i], &ws_pkt);
+                // Create Websocket packet
+                queued_ws_frame_t * queuedData = calloc(1, sizeof(queued_ws_frame_t));
+
+                // Copy Data to be sent so that is persists after this function ends
+                char* dataCopy = malloc(len);
+                memcpy(dataCopy, buffer, len); 
+
+                queuedData->ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+                queuedData->ws_pkt.len = len;
+                queuedData->ws_pkt.payload = (uint8_t*)dataCopy;
+
+                queuedData->fd = clientFds[i];
+
+                httpd_queue_work(server, wsAsyncSend, queuedData);
             }
         }
     }
@@ -100,10 +137,6 @@ void sendData(wsDataType_t dataType, uint32_t data)
     int clientFds[7];
     size_t clientCount;
 
-    uint32_t payload[2];
-    payload[0] = dataType;
-    payload[1] = data;
-
     // Make sure server is running
     if(server != NULL)
     {
@@ -111,21 +144,29 @@ void sendData(wsDataType_t dataType, uint32_t data)
         if(httpd_get_client_list(server, &clientCount, clientFds) != ESP_OK)
             return;
 
-        // Create Websocket packet
-        httpd_ws_frame_t ws_pkt;
-        memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
-        ws_pkt.type = HTTPD_WS_TYPE_BINARY;
-        ws_pkt.len = 8;
-        ws_pkt.payload = (uint8_t*)payload;
-
         // Send to all open data Websockets
         for(uint i = 0; i < clientCount; i++)
         {
             // Check that socket is a data websocket
             if((uint32_t)httpd_sess_get_ctx(server, clientFds[i]) == WS_DATA)
             {
+                // Create Websocket packet
+                queued_ws_frame_t * queuedData = calloc(1, sizeof(queued_ws_frame_t));
+
+                // Copy Data to be sent so that is persists after this function ends
+                uint32_t* payload = malloc(2*sizeof(uint32_t));
+                payload[0] = dataType;
+                payload[1] = data;
+
+                queuedData->ws_pkt.type = HTTPD_WS_TYPE_BINARY;
+                queuedData->ws_pkt.len = 8;
+                queuedData->ws_pkt.payload = (uint8_t*)payload;
+
+                queuedData->fd = clientFds[i];
+
                 LOGI("Sending Data to client ID: %d", clientFds[i]);
-                httpd_ws_send_frame_async(server, clientFds[i], &ws_pkt);
+
+                httpd_queue_work(server, wsAsyncSend, queuedData);
             }
         }
     }

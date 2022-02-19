@@ -10,6 +10,7 @@
 #include "lwip/apps/netbiosns.h"
 #include "esp_spiffs.h"
 #include "esp_wifi.h"
+#include "driver/gpio.h"
 
 // Project Inclues
 #include "ProjectConfig.h"
@@ -19,6 +20,8 @@
 #include "ds18b20.h"
 #include "projectLog.h"
 #include "sysTime.h"
+
+#include "esp_log.h"
 
 // FreeRTOS Includes
 #include "freertos/task.h"
@@ -190,6 +193,12 @@ esp_err_t init_fs(void)
     return ESP_OK;
 }
 
+void initGpio()
+{
+    gpio_pad_select_gpio(LED_GPIO);
+    gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
+}
+
 /**
  * @brief 
  * Temporary function for testing various features.
@@ -222,6 +231,7 @@ void Periodic5SecFuncs(void * parameters)
         LOGI("%s", buffer);
 
         sendData(WS_DATA_WATER_TEMP, temperatures[WATER_TEMP_SENSOR].i);
+
         sendData(WS_DATA_AMB_TEMP, temperatures[AMBIENT_TEMP_SENSOR].i);
 
         if(temp)
@@ -231,9 +241,13 @@ void Periodic5SecFuncs(void * parameters)
 
         temp = !temp;
 
-        //vTaskList(buffer);
-        //LOGI("\nTaskList:\n%s\n\n", buffer);   
+        vTaskList(buffer);
+        LOGI("\nTaskList:\n%s\n\n", buffer);   
 
+        vTaskGetRunTimeStats(buffer);
+        LOGI("\nRuntime Stats:\n%s\n\n", buffer);  
+
+        LOGI("Getting Time");
         if(isTimeSet())
         {
             getTimeStr(buffer, 100);
@@ -243,6 +257,26 @@ void Periodic5SecFuncs(void * parameters)
         {
             LOGI("Time has not been set yet");
         }
+
+        LOGI("Free Heap: %d", xPortGetFreeHeapSize());
+    }
+}
+
+/**
+ * @brief Task for flashing feel good LED
+ */
+void LedTaskvoid(void * parameters)
+{
+    static bool ledState = false;
+
+    TickType_t LastWakeTime;
+    const TickType_t FunctionPeriod = 0.5 * xPortGetTickRateHz();      // 5 Second Delay
+
+    while(true)
+    {
+        vTaskDelayUntil( &LastWakeTime, FunctionPeriod );
+        gpio_set_level(LED_GPIO, ledState);
+        ledState = !ledState;
     }
 }
 
@@ -252,6 +286,8 @@ void Periodic5SecFuncs(void * parameters)
  */
 void app_main(void)
 {
+    initGpio();
+
     configureTempSensors();
 
     ESP_ERROR_CHECK(nvs_flash_init());
@@ -270,4 +306,7 @@ void app_main(void)
 
     // Start testing task
     xTaskCreate(&Periodic5SecFuncs, "5SecFuncs", ESP_TASK_MAIN_STACK, NULL, 10, NULL);
+
+    // Start LED task
+    xTaskCreate(&LedTaskvoid, "LED", 512, NULL, 0, NULL);
 }

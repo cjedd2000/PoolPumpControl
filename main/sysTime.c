@@ -13,7 +13,7 @@
 #include "projectLog.h"
 
 // Private Function prototypes
-static void time_sync_notification_cb(struct timeval *tv);
+void time_sync_notification_cb(struct timeval *tv);
 
 /**
  * @brief Checks if the time has been set since startup
@@ -44,7 +44,7 @@ bool isTimeSet()
  */
 void time_sync_notification_cb(struct timeval *tv)
 {
-    LOGI("NTP Time Sync Occurred.");
+    ESP_LOGI("sysTime.c", "NTP Time Sync Occurred.");
 }
 
 /**
