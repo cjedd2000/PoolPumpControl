@@ -3,6 +3,7 @@ idf_component_register(SRCS "main.c"
                             "temperature.c"
                             "../TempSensor/ds18b20.c"
                             "sysTime.c"
+                            "pumpControl.c"
                     INCLUDE_DIRS "."
                                  "../TempSensor")
 
