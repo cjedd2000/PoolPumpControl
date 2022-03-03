@@ -15,8 +15,11 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include "esp_log.h"
+
 // Project Incudes
 #include "projectLog.h"
+#include "pumpControl.h"
 
 
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
@@ -131,24 +134,35 @@ void sendToRemoteDebugger(const char *format, ...)
  * 
  * @param dataType Data Type Specifier to add to packet
  * @param data Data to be sent
+ * @param clientFd Specific Client to Send Data too, set to -1 to send to all clients
  */
-void sendData(wsDataType_t dataType, uint32_t data)
+void sendData(wsDataType_t dataType, uint32_t data, int clientFd)
 {
-    int clientFds[7];
+    int allClientFds[7];
     size_t clientCount;
 
+    ESP_LOGI("test", "Client FD: %d", clientFd);
     // Make sure server is running
     if(server != NULL)
     {
         // Get Client list. Return immediately if there is an error with the list.
-        if(httpd_get_client_list(server, &clientCount, clientFds) != ESP_OK)
+        if(httpd_get_client_list(server, &clientCount, allClientFds) != ESP_OK)
             return;
 
         // Send to all open data Websockets
         for(uint i = 0; i < clientCount; i++)
         {
+            // Skip other clients if specific client is specified
+            if((clientFd != WS_ALL_CLIENTS) && (allClientFds[i] != clientFd))
+            {
+                ESP_LOGI("test", "Wrong Client: %d", allClientFds[i]);
+                continue;
+            }
+
+            ESP_LOGI("test", "Sending Data To: %d", allClientFds[i]);
+
             // Check that socket is a data websocket
-            if((uint32_t)httpd_sess_get_ctx(server, clientFds[i]) == WS_DATA)
+            if((uint32_t)httpd_sess_get_ctx(server, allClientFds[i]) == WS_DATA)
             {
                 // Create Websocket packet
                 queued_ws_frame_t * queuedData = calloc(1, sizeof(queued_ws_frame_t));
@@ -162,9 +176,9 @@ void sendData(wsDataType_t dataType, uint32_t data)
                 queuedData->ws_pkt.len = 8;
                 queuedData->ws_pkt.payload = (uint8_t*)payload;
 
-                queuedData->fd = clientFds[i];
+                queuedData->fd = allClientFds[i];
 
-                LOGI("Sending Data to client ID: %d", clientFds[i]);
+                LOGI("Sending Data to client ID: %d", allClientFds[i]);
 
                 httpd_queue_work(server, wsAsyncSend, queuedData);
             }
@@ -186,6 +200,24 @@ static void wsSessContextFreeFunc(void *ctx)
     return;     // Do nothing
 }
 
+void sendNewConnectionData(int clientFd)
+{
+    data32_t temp;
+
+    LOGI("Sending new Connection data");
+    temp.f = GetMinAmbientTemperature();
+    sendData(WS_DATA_SETTING_MIN_AMB,    temp.i, clientFd);
+
+    temp.f = GetAmbientTempHysteresis();
+    sendData(WS_DATA_SETTING_AMB_HYST,   temp.i, clientFd);
+
+    temp.f = GetMinWaterTemperature();
+    sendData(WS_DATA_SETTING_MIN_WATER,  temp.i, clientFd);
+
+    temp.f = GetWaterTempHysteresis();
+    sendData(WS_DATA_SETTING_WATER_HYST, temp.i, clientFd);
+}
+
 /**
  * @brief 
  * Websocket handler function. 
@@ -205,7 +237,8 @@ static esp_err_t wsHandler(httpd_req_t *req)
                 break;
 
             case WS_DATA:
-            LOGI("Handshake done, Data Websocket opened");
+                LOGI("Handshake done, Data Websocket opened");
+                sendNewConnectionData(httpd_req_to_sockfd(req));
                 break;
 
             default:

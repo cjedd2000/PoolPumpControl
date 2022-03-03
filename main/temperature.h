@@ -10,16 +10,14 @@
 // ESP IDF includes
 #include "esp_err.h"
 
+// Standard Library Includes
+#include <stdbool.h>
+
 /* Max attempts to make at reading temperature sensor when an error occurs before reporting Device Disconnected */
 #define MAX_READ_ATTEMPTS 5
 
 /* Number of bits resolution for temperature sensors */
 #define SENSOR_RESOLUTION 10
-
-/* Public Function Prototypes */
-esp_err_t configureTempSensors();
-void getTemperatures(float *temperatures);
-bool tempIsDisconnected(float temperature);
 
 /* Temperature Sensor ID Enumeration */
 typedef enum 
@@ -28,3 +26,10 @@ typedef enum
     WATER_TEMP_SENSOR,
     TEMP_SENSOR_COUNT
 } TempSensorId;
+
+/* Public Function Prototypes */
+esp_err_t configureTempSensors();
+void getTemperatures(float *temperatures);
+bool tempIsDisconnected(float temperature);
+float getLastTemperatureRead(TempSensorId sensorId);
+

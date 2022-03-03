@@ -21,6 +21,9 @@ DeviceAddress TempSensors[TEMP_SENSOR_COUNT];
 /* Current number of sensors known on bus */
 unsigned int SensorsFound = 0;
 
+/* Storage for last temperature reading */
+float LastTemperaturesRead[TEMP_SENSOR_COUNT] = { DEVICE_DISCONNECTED };
+
 /**
  * @brief Searches bus for available temperature sensors
  * 
@@ -83,6 +86,7 @@ void getTemperatures(float *temperatures)
         while((readAttempts++ < MAX_READ_ATTEMPTS) && tempIsDisconnected(temperatures[i]))
         {
             temperatures[i] = ds18b20_getTempC(&TempSensors[i]);
+            LastTemperaturesRead[i] = temperatures[i];
 
             if(tempIsDisconnected(temperatures[i]))
             {
@@ -95,6 +99,24 @@ void getTemperatures(float *temperatures)
         }
 
         readAttempts = 0;
+    }
+}
+
+/**
+ * @brief Get the last temperature read from a sensor
+ * 
+ * @param sensorId Index of sensor being requested
+ * @return Last Temperature read from device
+ */
+float getLastTemperatureRead(TempSensorId sensorId)
+{
+    if(sensorId < TEMP_SENSOR_COUNT)
+    {
+        return LastTemperaturesRead[sensorId];
+    }
+    else
+    {
+        return DEVICE_DISCONNECTED;
     }
 }
 

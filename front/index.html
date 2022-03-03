@@ -45,6 +45,28 @@
                 font-size: x-large;
             }
 
+            .settingsInterface {
+                padding-top: 3px;
+                padding-left: 5px;
+                padding-right: 5px;
+                padding-bottom: 5px;
+                font-size: large;
+            }
+
+            .settingsInterface form  {display: table;}
+            .settingsInterface p     {display: table-row;}
+            .settingsInterface input {
+                display: table-cell;
+                margin-left:7px;
+                margin-right: 15px;
+                background-color: rgb(179, 179, 179);
+            }
+
+            .settingsInterface label {
+                display: table-cell;
+                text-align: right;
+            }
+
             .button {
                 background-color: #4CAF50; /* Green */
                 border: none;
@@ -76,13 +98,29 @@
 
                 <button id="togglePumpState" class="button"> Toggle Pump Power </button>
             </div>
+            <hr>
+            <div class="settingsInterface">
+                <div style="font-size: x-large;"> Settings: </div>
+                <div id="AmbientTempSettings">
+                    <form>
+                        <p>
+                            <label for="minAmbField">Minimum Ambient Temperature:</label><input type="number" name="minAmbient" id="minAmbField" step="0.1" size="6">
+                            <label for="ambHystField">Hysteresis:</label><input type="number" name="ambientHyst" id="ambientHystField" step="0.1" size="6">
+                        </p>
+                        <p>
+                            <label for="minWaterField">Minimum Water Temperature:</label><input type="number" name="minWater" id="minWaterField" step="0.1" size="6">
+                            <label for="waterHystField">Hysteresis:</label><input type="number" name="waterHyst" id="waterHystField" step="0.1" size="6">
+                        </p>
+                        <button id="updateSettings" class="button"> Update Settings </button>
+                    </form>
+                </div>
+            </div>
 
             <div id="debugContainer" class="debugFrame">
                 <div id="debugHeader">
                     <a style="font-size: larger; font-weight: bold; padding-left: 5px;">Debugger</a>
                         <input type="checkbox" id="AutoScroll" name="AutoScroll" value="AutoScroll" style="position: absolute; right: 10px;">
                         <label style="position: absolute; right: 35px; font-weight: bold;" for="AutoScroll"> Auto Scroll</label><br>
-                    
                 </div>
                 <hr>
                 <div id="debugTextFieldDiv" class="debugTextConsole"> <pre id="debugTextField"></pre> </div>
@@ -99,7 +137,11 @@
             const WS_DATA_PUMP_STATE = 1;
             const WS_DATA_WATER_TEMP = 2;
             const WS_DATA_AMB_TEMP = 3;
-
+            const WS_DATA_SETTING_MIN_AMB = 4;
+            const WS_DATA_SETTING_AMB_HYST = 5;
+            const WS_DATA_SETTING_MIN_WATER = 6;
+            const WS_DATA_SETTING_WATER_HYST = 7;
+ 
             const MAX_DEBUG_CHARS = 20000;
 
             var debuggerWs;
@@ -239,6 +281,22 @@
                             // Error in temperature Reading
                             document.getElementById('ambientTemp').innerHTML = 'Ambient Temperature: Sensor Error';
                         }
+                        break;
+                        
+                    case WS_DATA_SETTING_MIN_AMB:
+                        document.getElementById('minAmbField').value = dataFloat.toFixed(1);
+                        break;
+
+                    case WS_DATA_SETTING_AMB_HYST:
+                        document.getElementById('ambHystField').value = dataFloat.toFixed(1);
+                        break;
+
+                    case WS_DATA_SETTING_MIN_WATER:
+                        document.getElementById('minWaterField').value = dataFloat.toFixed(1);
+                        break;
+
+                    case WS_DATA_SETTING_WATER_HYST:
+                        document.getElementById('waterHystField').value = dataFloat.toFixed(1);
                         break;
 
                     default:

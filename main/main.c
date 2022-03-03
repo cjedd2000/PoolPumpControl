@@ -29,16 +29,6 @@
 
 /**
  * @brief 
- * Union used to reinterpret floats and uint32_t types for data transmission over sockets.
- */
-typedef union
-{
-    uint32_t i;
-    float f;
-} data32_t;
-
-/**
- * @brief 
  * Attempts to re connect to WiFi when it disconnects.
  */
 static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
@@ -228,27 +218,33 @@ void Periodic5SecFuncs(void * parameters)
         // Actions
         getTemperatures((float *)temperatures);
 
+#if(DEBUG_PRINT_TEMPS)
         snprintf(buffer, 100, "Temperatures:\nAmbient: %0.1fC\n  Water: %0.1fC", temperatures[AMBIENT_TEMP_SENSOR].f, temperatures[WATER_TEMP_SENSOR].f);
         LOGI("%s", buffer);
+#endif
 
-        sendData(WS_DATA_WATER_TEMP, temperatures[WATER_TEMP_SENSOR].i);
-
-        sendData(WS_DATA_AMB_TEMP, temperatures[AMBIENT_TEMP_SENSOR].i);
+        // Send Temperature Data to connected clients
+        sendData(WS_DATA_WATER_TEMP, temperatures[WATER_TEMP_SENSOR].i, WS_ALL_CLIENTS);
+        sendData(WS_DATA_AMB_TEMP, temperatures[AMBIENT_TEMP_SENSOR].i, WS_ALL_CLIENTS);
 
         if(temp)
-            sendData(WS_DATA_PUMP_STATE, 1);
+            sendData(WS_DATA_PUMP_STATE, 1, WS_ALL_CLIENTS);
         else
-            sendData(WS_DATA_PUMP_STATE, 0);
+            sendData(WS_DATA_PUMP_STATE, 0, WS_ALL_CLIENTS);
 
         temp = !temp;
 
+#if(DEBUG_PRINT_TASK_LIST)
         vTaskList(buffer);
-        LOGI("\nTaskList:\n%s\n\n", buffer);   
+        LOGI("\nTaskList:\n%s\n\n", buffer);
+#endif
 
+#if(DEBUG_PRINT_RUNTIME_STATS)
         vTaskGetRunTimeStats(buffer);
-        LOGI("\nRuntime Stats:\n%s\n\n", buffer);  
+        LOGI("\nRuntime Stats:\n%s\n\n", buffer);
+#endif
 
-        LOGI("Getting Time");
+#if(DEBUG_PRINT_TIME)
         if(isTimeSet())
         {
             getTimeStr(buffer, 100);
@@ -258,8 +254,11 @@ void Periodic5SecFuncs(void * parameters)
         {
             LOGI("Time has not been set yet");
         }
+#endif
 
+#if(DEBUG_PRINT_FREE_HEAP)
         LOGI("Free Heap: %d", xPortGetFreeHeapSize());
+#endif
     }
 }
 
@@ -305,7 +304,7 @@ void app_main(void)
 
     timeInit(TIMEZONE);
 
-    pumpControlInit();
+    PumpControlInit();
 
     // Start testing task
     xTaskCreate(&Periodic5SecFuncs, "5SecFuncs", ESP_TASK_MAIN_STACK, NULL, 10, NULL);
