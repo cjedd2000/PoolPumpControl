@@ -20,6 +20,7 @@
 #include "ds18b20.h"
 #include "projectLog.h"
 #include "sysTime.h"
+#include "pumpControl.h"
 
 #include "esp_log.h"
 
@@ -304,9 +305,14 @@ void app_main(void)
 
     timeInit(TIMEZONE);
 
+    pumpControlInit();
+
     // Start testing task
     xTaskCreate(&Periodic5SecFuncs, "5SecFuncs", ESP_TASK_MAIN_STACK, NULL, 10, NULL);
 
     // Start LED task
     xTaskCreate(&LedTaskvoid, "LED", 512, NULL, 0, NULL);
+
+    // Start Pump Control Task
+    xTaskCreate(&PumpControlTask, "Pump Ctrl", ESP_TASK_MAIN_STACK, NULL, 0, NULL);
 }

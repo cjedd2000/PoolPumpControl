@@ -37,7 +37,10 @@
     "regex": "c",
     "*.tcc": "c",
     "esp_https_server.h": "c",
-    "nvs_flash.h": "c"
+    "nvs_flash.h": "c",
+    "task.h": "c",
+    "freertos.h": "c",
+    "timers.h": "c"
   },
   "idf.portWin": "COM5"
 }

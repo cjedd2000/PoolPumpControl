@@ -44,7 +44,7 @@ bool isTimeSet()
  */
 void time_sync_notification_cb(struct timeval *tv)
 {
-    ESP_LOGI("sysTime.c", "NTP Time Sync Occurred.");
+   // ESP_LOGI("sysTime.c", "NTP Time Sync Occurred.");
 }
 
 /**
