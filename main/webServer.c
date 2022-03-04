@@ -25,6 +25,8 @@
 #define FILE_PATH_MAX (ESP_VFS_PATH_MAX + 128)
 #define SCRATCH_BUFSIZE (10240)
 
+#define DATA_QUEUE_LEN (32)
+
 #define CHECK_FILE_EXTENSION(filename, ext) (strcasecmp(&filename[strlen(filename) - strlen(ext)], ext) == 0)
 
 typedef struct server_context {
@@ -151,7 +153,8 @@ void sendToRemoteDebugger(const char *format, ...)
 
                 queuedData->fd = clientFds[i];
 
-                httpd_queue_work(server, wsAsyncSend, queuedData);
+                //httpd_queue_work(server, wsAsyncSend, queuedData);
+                wsAsyncSend(queuedData);
             }
         }
     }
@@ -194,7 +197,8 @@ void sendData(wsDataType_t dataType, uint32_t data, int clientFd)
 
             queuedData->ws_pkt.payload = (uint8_t*)payload;
 
-            httpd_queue_work(server, wsAsyncSend, queuedData);
+            //httpd_queue_work(server, wsAsyncSend, queuedData);
+            wsAsyncSend(queuedData);
 
             return;     // Only sending to specific client. Skip the rest of the function.
         }
@@ -226,7 +230,8 @@ void sendData(wsDataType_t dataType, uint32_t data, int clientFd)
 
                 LOGI("Sending Data to client ID: %d", allClientFds[i]);
 
-                httpd_queue_work(server, wsAsyncSend, queuedData);
+                //httpd_queue_work(server, wsAsyncSend, queuedData);
+                wsAsyncSend(queuedData);
             }
         }
     }
