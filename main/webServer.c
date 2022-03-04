@@ -56,6 +56,35 @@ typedef enum
     WS_DATA = 222
 } socketType_t;
 
+// Function Prototypes
+void sendNewConnectionData(int clientFd);
+
+
+void receiveSettingsData(data32_t* payload, uint32_t len)
+{
+    const uint32_t SettingsPacketLen = 5;
+
+    if(len != SettingsPacketLen)
+    {
+        LOGW("Incorrect Settings Packet Length of %d", len);
+        return;
+    }
+
+    if(payload[SETTINGS_TYPE].i != WS_DATA_NEW_SETTING_DATA)
+    {
+        LOGW("Incorrect Settings Packet Type of %d", payload[SETTINGS_TYPE].i);
+    }
+
+    // Length and type good. Apply settings.
+    SetMinAmbientTemperature(payload[SETTINGS_MIN_AMB_TEMP].f);
+    SetMinWaterTemperature(payload[SETTINGS_MIN_WATER_TEMP].f);
+    SetAmbientTempHysteresis(payload[SETTINGS_AMB_HYSTERESIS].f);
+    SetWaterTempHysteresis(payload[SETTINGS_WATER_HYSTERESIS].f);
+
+    // Resend Settings Data to All Active Clients
+    sendNewConnectionData(WS_ALL_CLIENTS);
+}
+
 /**
  * @brief 
  * Function meant to execute in httpd context due to calling httpd_queue_work() and send frame
@@ -278,9 +307,9 @@ static esp_err_t wsHandler(httpd_req_t *req)
     // Start handling data received from websockets here. Not Implemented yet, place holder only.
 
     httpd_ws_frame_t ws_pkt;
-    uint8_t *buf = NULL;
+    data32_t *buf = NULL;
     memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
-    ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+    ws_pkt.type = HTTPD_WS_TYPE_BINARY;
     /* Set max_len = 0 to get the frame len */
     esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
     if (ret != ESP_OK) {
@@ -289,13 +318,12 @@ static esp_err_t wsHandler(httpd_req_t *req)
     }
     LOGI("frame len is %d", ws_pkt.len);
     if (ws_pkt.len) {
-        /* ws_pkt.len + 1 is for NULL termination as we are expecting a string */
-        buf = calloc(1, ws_pkt.len + 1);
+        buf = calloc(1, ws_pkt.len);
         if (buf == NULL) {
             LOGE("Failed to calloc memory for buf");
             return ESP_ERR_NO_MEM;
         }
-        ws_pkt.payload = buf;
+        ws_pkt.payload = (uint8_t*)buf;
         /* Set max_len = ws_pkt.len to get the frame payload */
         ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
         if (ret != ESP_OK) {
@@ -303,19 +331,23 @@ static esp_err_t wsHandler(httpd_req_t *req)
             free(buf);
             return ret;
         }
-        LOGI("Got packet with message: %s", ws_pkt.payload);
+        
+        // Show received data
+        for(uint16_t i = 0; i < (ws_pkt.len/sizeof(uint32_t)); i++)
+        {
+            if(i == 0)
+            {
+                LOGI("Data %d: %d", i, buf[i].i);
+            }
+            else
+            {
+                LOGI("Data %d: %0.2f", i, buf[i].f);
+            }
+        }
     }
 
-    char sendMessage[] = "Debugger Message Received";
-    ws_pkt.len = strnlen(sendMessage, 50);
-    ws_pkt.payload = (uint8_t*)sendMessage;
-    ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+    receiveSettingsData(buf, ws_pkt.len/sizeof(data32_t));
 
-    LOGI("Send Frame");
-    ret = httpd_ws_send_frame(req, &ws_pkt);
-    if (ret != ESP_OK) {
-        LOGE("httpd_ws_send_frame failed with %d", ret);
-    }
     free(buf);
     return ret;
 }

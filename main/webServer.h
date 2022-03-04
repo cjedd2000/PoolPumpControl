@@ -37,6 +37,18 @@ typedef enum
     WS_DATA_NEW_SETTING_DATA,
 } wsDataType_t;
 
+/**
+ * @brief Defines the indexes of the settings data packet
+ */
+typedef enum
+{
+    SETTINGS_TYPE = 0,
+    SETTINGS_MIN_AMB_TEMP,
+    SETTINGS_MIN_WATER_TEMP,
+    SETTINGS_AMB_HYSTERESIS,
+    SETTINGS_WATER_HYSTERESIS,
+} SettingsData;
+
 esp_err_t start_web_server(const char *base_path);
 void sendToRemoteDebugger(const char *format, ...);
 void sendData(wsDataType_t dataType, uint32_t data, int clientFds);

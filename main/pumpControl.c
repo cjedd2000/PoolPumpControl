@@ -80,7 +80,6 @@ float GetWaterTempHysteresis()
     return WaterTempHysteresis;
 }
 
-
 void SetMinAmbientTemperature(float temp)
 {
     // Don't allow setting of temperature at freezing or below
@@ -130,8 +129,8 @@ void pumpTimerCallback( TimerHandle_t timerHandle )
 void PumpControlInit()
 {
 #if(USE_DEBUG_TIMES)
-    MinPumpRunTimeSec = 10;
-    MinPumpOffTimeSec = 5;
+    MinPumpRunTimeSec = 30;
+    MinPumpOffTimeSec = 15;
 #endif
 
     // Init GPIO for pump control
@@ -149,7 +148,7 @@ void PumpControlInit()
 void pumpOn()
 {
     // Enforce Minimum On Time
-    if(PumpStateTimeSecs >= MinPumpRunTimeSec)
+    if(PumpStateTimeSecs >= MinPumpOffTimeSec)
     {
         // Reset State Time only if Pump was previously not running
         if(!PumpRunning())
@@ -167,7 +166,7 @@ void pumpOn()
 void pumpOff()
 {
     // Enforce Minimum Off Time
-    if(PumpStateTimeSecs >= MinPumpOffTimeSec)
+    if(PumpStateTimeSecs >= MinPumpRunTimeSec)
     {
         // Reset State Time only if Pump was previously running
         if(PumpRunning())
