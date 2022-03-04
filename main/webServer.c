@@ -141,10 +141,35 @@ void sendData(wsDataType_t dataType, uint32_t data, int clientFd)
     int allClientFds[7];
     size_t clientCount;
 
-    ESP_LOGI("test", "Client FD: %d", clientFd);
     // Make sure server is running
     if(server != NULL)
     {
+        // Create Websocket packet
+        queued_ws_frame_t wsFrame;
+
+        wsFrame.ws_pkt.type = HTTPD_WS_TYPE_BINARY;
+        wsFrame.ws_pkt.len = 8;
+        wsFrame.fd = clientFd;
+
+        // Check if we are sending to a specific client
+        if(clientFd != WS_ALL_CLIENTS)
+        {
+            // Allocate persistent memory and copy packet data
+            queued_ws_frame_t * queuedData = calloc(1, sizeof(queued_ws_frame_t));
+            memcpy(queuedData, &wsFrame, sizeof(queued_ws_frame_t));
+
+            // Copy Data to be sent so that is persists after this function ends
+            uint32_t* payload = malloc(2*sizeof(uint32_t));
+            payload[0] = dataType;
+            payload[1] = data;
+
+            queuedData->ws_pkt.payload = (uint8_t*)payload;
+
+            httpd_queue_work(server, wsAsyncSend, queuedData);
+
+            return;     // Only sending to specific client. Skip the rest of the function.
+        }
+
         // Get Client list. Return immediately if there is an error with the list.
         if(httpd_get_client_list(server, &clientCount, allClientFds) != ESP_OK)
             return;
@@ -152,30 +177,22 @@ void sendData(wsDataType_t dataType, uint32_t data, int clientFd)
         // Send to all open data Websockets
         for(uint i = 0; i < clientCount; i++)
         {
-            // Skip other clients if specific client is specified
-            if((clientFd != WS_ALL_CLIENTS) && (allClientFds[i] != clientFd))
-            {
-                ESP_LOGI("test", "Wrong Client: %d", allClientFds[i]);
-                continue;
-            }
-
-            ESP_LOGI("test", "Sending Data To: %d", allClientFds[i]);
-
             // Check that socket is a data websocket
             if((uint32_t)httpd_sess_get_ctx(server, allClientFds[i]) == WS_DATA)
             {
                 // Create Websocket packet
                 queued_ws_frame_t * queuedData = calloc(1, sizeof(queued_ws_frame_t));
+                memcpy(queuedData, &wsFrame, sizeof(queued_ws_frame_t));
 
                 // Copy Data to be sent so that is persists after this function ends
                 uint32_t* payload = malloc(2*sizeof(uint32_t));
                 payload[0] = dataType;
                 payload[1] = data;
 
-                queuedData->ws_pkt.type = HTTPD_WS_TYPE_BINARY;
-                queuedData->ws_pkt.len = 8;
+                // Update payload pointer
                 queuedData->ws_pkt.payload = (uint8_t*)payload;
 
+                // Update client Fds
                 queuedData->fd = allClientFds[i];
 
                 LOGI("Sending Data to client ID: %d", allClientFds[i]);

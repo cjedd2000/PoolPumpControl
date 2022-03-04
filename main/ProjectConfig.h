@@ -13,7 +13,7 @@
 #define WEB_MOUNT_POINT "/www"
 
 // Logging
-#define ENABLE_REMOTE_DEBUGGER 1
+#define ENABLE_REMOTE_DEBUGGER 0
 
 // Time
 #define TIMEZONE "EST5EDT,M3.2.0/2,M11.1.0"

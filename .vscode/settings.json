@@ -41,7 +41,9 @@
     "nvs_flash.h": "c",
     "task.h": "c",
     "freertos.h": "c",
-    "timers.h": "c"
+    "timers.h": "c",
+    "bitset": "c",
+    "*.ipp": "c"
   },
   "idf.portWin": "COM5"
 }

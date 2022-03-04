@@ -105,14 +105,15 @@
                     <form>
                         <p>
                             <label for="minAmbField">Minimum Ambient Temperature:</label><input type="number" name="minAmbient" id="minAmbField" step="0.1" size="6">
-                            <label for="ambHystField">Hysteresis:</label><input type="number" name="ambientHyst" id="ambientHystField" step="0.1" size="6">
+                            <label for="ambHystField">Hysteresis:</label><input type="number" name="ambientHyst" id="ambHystField" step="0.1" size="6">
                         </p>
                         <p>
                             <label for="minWaterField">Minimum Water Temperature:</label><input type="number" name="minWater" id="minWaterField" step="0.1" size="6">
                             <label for="waterHystField">Hysteresis:</label><input type="number" name="waterHyst" id="waterHystField" step="0.1" size="6">
                         </p>
-                        <button id="updateSettings" class="button"> Update Settings </button>
                     </form>
+                    <div><button id="updateSettings" class="button"> Update Settings </button></div>
+                    <div id="ErrorMessage"></div>
                 </div>
             </div>
 
@@ -141,6 +142,7 @@
             const WS_DATA_SETTING_AMB_HYST = 5;
             const WS_DATA_SETTING_MIN_WATER = 6;
             const WS_DATA_SETTING_WATER_HYST = 7;
+            const WS_DATA_NEW_SETTING_DATA = 8;
  
             const MAX_DEBUG_CHARS = 20000;
 
@@ -153,6 +155,7 @@
             var automaticScrollDebugger = true;
 
             function initDebuggerWebSocket() {
+                return;
                 console.log('Trying to open a Debugger WebSocket connection...');
                 debuggerWs = new WebSocket(debuggerWsAddr);
                 debuggerWs.onopen    = onDebuggerOpen;
@@ -307,14 +310,15 @@
 
             window.addEventListener('load', onLoad);
             function onLoad(event) {
-                initButton();
+                initButtons();
                 initAutoScrollCheckbox();
                 setTimeout(initDebuggerWebSocket, 200);
                 setTimeout(initDataWebSocket, 200);
             }
 
-            function initButton() {
+            function initButtons() {
                 document.getElementById('togglePumpState').addEventListener('click', toggle);
+                document.getElementById('updateSettings').addEventListener('click', sendSettings);
             }
 
             function initAutoScrollCheckbox() {
@@ -331,9 +335,62 @@
                 }
             }
 
-            function toggle(){
+            function toggle() {
                 dataWs.send('toggle');
                 console.log("Toggle Button Pressed")
+            }
+
+            function sendSettings() {
+                var buffer = new ArrayBuffer(20);
+                var intView = new Int32Array(buffer);
+                var floatView = new Float32Array(buffer);
+
+                const INVALID_SETTING_STR = 'Invalid Setting Data!!!!'
+
+                var minAmbTemp = parseFloat(document.getElementById('minAmbField').value);
+                console.log('Min Amb: ' + minAmbTemp);
+                if(isNaN(minAmbTemp))
+                {
+                    setErrorMessage(INVALID_SETTING_STR);
+                    return;
+                }
+
+                var minWaterTemp = parseFloat(document.getElementById('minWaterField').value);
+                console.log('Min Water: ' + minWaterTemp);
+                if(isNaN(minWaterTemp))
+                {
+                    setErrorMessage(INVALID_SETTING_STR);
+                    return;
+                }
+
+                var ambHyst = parseFloat(document.getElementById('ambHystField').value);
+                console.log('AmbHyst: ' + ambHyst);
+                if(isNaN(ambHyst))
+                {
+                    setErrorMessage(INVALID_SETTING_STR);
+                    return;
+                }
+
+                var waterHyst = parseFloat(document.getElementById('waterHystField').value);
+                console.log('WaterHyst: ' + waterHyst);
+                if(isNaN(waterHyst))
+                {
+                    setErrorMessage(INVALID_SETTING_STR);
+                    return;
+                }
+
+                setErrorMessage('');
+                intView[0] = WS_DATA_NEW_SETTING_DATA;
+                floatView[1] = minAmbTemp;
+                floatView[2] = minWaterTemp;
+                floatView[3] = ambHyst;
+                floatView[4] = waterHyst;
+
+                dataWs.send(buffer);
+            }
+
+            function setErrorMessage(message) {
+                document.getElementById('ErrorMessage').innerHTML = message;
             }
         </script>
     </body>

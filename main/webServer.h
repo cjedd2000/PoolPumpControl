@@ -34,6 +34,7 @@ typedef enum
     WS_DATA_SETTING_AMB_HYST,
     WS_DATA_SETTING_MIN_WATER,
     WS_DATA_SETTING_WATER_HYST,
+    WS_DATA_NEW_SETTING_DATA,
 } wsDataType_t;
 
 esp_err_t start_web_server(const char *base_path);
